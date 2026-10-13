@@ -1,0 +1,12 @@
+node_modules/
+# documents personnels : jamais sur GitHub
+*.pdf
+# images de référence d'autres jeux / artistes (inspiration seulement, pas à nous)
+characters/*.jpg
+characters/*.png
+!characters/cafe-*.jpg
+characters/pixel art games/
+interior/*.jpg
+interior/toameliorate/
+exemple2cafe.jpeg
+pixel-cafe-screen2.webp

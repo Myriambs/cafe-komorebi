@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Komorebi Room View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../characters/cast.css">
+<style>
+  :root { --ink: #3b2838; --paper: #fdf5e8; --card: #fffaf2; --muted: #6e5a68; --line: #ead9c6; --sage-d: #7fa48c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.5 Nunito, system-ui, sans-serif; }
+  .wrap { max-width: 1640px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font: italic 600 clamp(24px, 3vw, 34px) Fraunces, Georgia, serif; margin: 0; }
+  .lead { color: var(--muted); margin: 4px 0 16px; max-width: 900px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .seg { display: flex; gap: 2px; padding: 3px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); }
+  .seg button { font: 700 13px/1 Nunito, sans-serif; color: var(--ink); background: none; border: 0; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  label.tg { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: 13px; padding: 6px 12px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); cursor: pointer; }
+  .frame { border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 5px 0 var(--ink); background: #000; }
+  #scene { display: block; width: 100%; height: auto; }
+  .legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 18px; }
+  .legend div { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+  .legend b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 12px; margin-right: 6px; }
+  .legend span { color: var(--muted); display: block; margin-top: 2px; }
+
+  /* visibilité selon le moment de la journée */
+  #scene .md, #scene .ms, #scene .mn { display: none; }
+  #scene[data-mode="day"] .md, #scene[data-mode="sunset"] .ms, #scene[data-mode="night"] .mn { display: inline; }
+  #scene:not(.zones) .zone { display: none; }
+  #scene:not(.hud) .hudl { display: none; }
+  .tint { mix-blend-mode: multiply; pointer-events: none; }
+  .glow { mix-blend-mode: screen; pointer-events: none; }
+  @keyframes dapple { 50% { transform: translate(6px, 3px) scale(1.05); opacity: .75; } }
+  @keyframes leafsway { 50% { transform: rotate(4deg); } }
+  @keyframes note { 0% { transform: translate(0, 0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(18px, -40px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Café Komorebi — Room View mockup</h1>
+  <p class="lead">The main in-game screen for PC: the café seen from above at an angle, so the animals are always visible at work. Switch the time of day to see how the room changes during the day cycle, and turn on the plan to see each zone.</p>
+  <div class="bar">
+    <div class="seg" id="modes">
+      <button data-m="day" class="on">Morning service</button>
+      <button data-m="sunset">Sunset</button>
+      <button data-m="night">Night (closed)</button>
+    </div>
+    <label class="tg"><input type="checkbox" id="tz"> Show plan zones</label>
+    <label class="tg"><input type="checkbox" id="th" checked> Show game interface</label>
+  </div>
+  <div class="frame"><svg id="scene" class="hud" viewBox="0 0 1600 900" data-mode="day" role="img" aria-label="Café interior seen from above"></svg></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script src="../characters/cast.js"></script>
+<script>
+/* ---------- Style de l'intérieur : traits fins brun chaud ---------- */
+const LN = '#7a5a4a';
+const L = (w = 2) => `stroke="${LN}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+const WALL = '#f8ecd9', SIDE = '#f0e0c9', WAIN = '#b5cdb8', FLOOR = '#dcb68e', WOOD = '#b07b5f', TOP = '#f3e7d6';
+
+// place un personnage (SVG imbriqué, mêmes états que la fiche)
+function ch(fn, state, x, y, w, modes, wide = false) {
+  const vw = wide ? 260 : 200, h = w * 260 / vw;
+  return `<svg class="${modes}" x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 ${vw} 260" data-state="${state}" overflow="visible">${fn()}</svg>`;
+}
+
+/* ---------- Murs, sol, fenêtre, porte ---------- */
+function shell() {
+  const VP = [800, -300], planks = [];
+  for (let x = 120; x <= 1480; x += 56) planks.push(`<path d="M${x} 330 L${(VP[0] + (x - VP[0]) * 1.905).toFixed(0)} 900" ${L(1.4)} opacity=".45"/>`);
+  for (let i = 0; i < 46; i++) { // joints de lattes
+    const y = 345 + ((i * 97) % 540), t = (y + 300) / 630, x0 = 800 + ((i * 173) % 1300 - 650) * t;
+    planks.push(`<path d="M${x0.toFixed(0)} ${y} l${(18 * t).toFixed(0)} 0" ${L(1.2)} opacity=".4"/>`);
+  }
+  return `
+  <defs>
+    <clipPath id="floorClip"><path d="M180 330 L1420 330 L1600 600 L1600 900 L0 900 L0 600Z"/></clipPath>
+    <clipPath id="winClip"><rect x="890" y="58" width="340" height="170" rx="6"/></clipPath>
+    <linearGradient id="skyDay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd3f2"/><stop offset="1" stop-color="#fbeedb"/></linearGradient>
+    <linearGradient id="skySun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5e4596"/><stop offset=".55" stop-color="#e0758e"/><stop offset="1" stop-color="#ffc98a"/></linearGradient>
+    <linearGradient id="skyNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1440"/><stop offset="1" stop-color="#2c3f82"/></linearGradient>
+    <radialGradient id="warm"><stop offset="0" stop-color="#ffd59a" stop-opacity=".9"/><stop offset="1" stop-color="#ffb36b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sunPatch"><stop offset="0" stop-color="#fff4c8" stop-opacity=".7"/><stop offset="1" stop-color="#fff4c8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="180" y="0" width="1240" height="330" fill="${WALL}"/>
+  <path d="M0 0 L180 0 L180 330 L0 600Z" fill="${SIDE}" ${L()}/>
+  <path d="M1420 0 L1600 0 L1600 600 L1420 330Z" fill="${SIDE}" ${L()}/>
+  <rect x="180" y="250" width="1240" height="80" fill="${WAIN}"/><rect x="180" y="246" width="1240" height="8" fill="#93b89f" ${L(1.5)}/>
+  <path d="M180 250 L180 330 L0 600 L0 455Z" fill="#a9c4ae" ${L(1.5)}/><path d="M1420 250 L1420 330 L1600 600 L1600 455Z" fill="#a9c4ae" ${L(1.5)}/>
+  ${[220, 300, 380, 460, 540, 620, 700, 780, 860].map(x => `<path d="M${x} 262 L${x} 322" ${L(1.2)} opacity=".35"/>`).join('')}
+  <path d="M180 330 L1420 330 L1600 600 L1600 900 L0 900 L0 600Z" fill="${FLOOR}"/>
+  <g clip-path="url(#floorClip)">${planks.join('')}</g>
+  <path d="M180 330 L1420 330" ${L(2.5)}/><path d="M180 0 L180 330 M1420 0 L1420 330" ${L(2)}/>
+
+  <!-- fenêtre sur la rue (Biscuit dehors) -->
+  <rect x="878" y="46" width="364" height="194" rx="10" fill="#fdf5e8" ${L(2.5)}/>
+  <g clip-path="url(#winClip)">
+    <rect class="md" x="890" y="58" width="340" height="170" fill="url(#skyDay)"/>
+    <rect class="ms" x="890" y="58" width="340" height="170" fill="url(#skySun)"/>
+    <rect class="mn" x="890" y="58" width="340" height="170" fill="url(#skyNight)"/>
+    <g class="mn">${[[920, 80], [990, 70], [1060, 96], [1180, 74], [1130, 110], [950, 120]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8" fill="#fff6e0"/>`).join('')}<circle cx="1190" cy="92" r="13" fill="#fff8e0"/></g>
+    <path d="M890 150 L930 150 L930 110 L960 92 L990 110 L990 150 L1030 150 L1030 120 L1090 120 L1090 150 L1120 150 L1120 100 L1150 84 L1180 100 L1180 150 L1230 150 L1230 228 L890 228Z" fill="#e9c9b9" ${L(1.5)}/>
+    ${[[905, 125], [945, 120], [1045, 130], [1135, 112], [1195, 125]].map(([x, y]) => `<rect x="${x}" y="${y}" width="14" height="14" fill="#a7c0dd" ${L(1)}/>`).join('')}
+    <g class="mn">${[[945, 120], [1135, 112]].map(([x, y]) => `<rect x="${x}" y="${y}" width="14" height="14" fill="#ffd28a"/>`).join('')}</g>
+    <rect x="890" y="196" width="340" height="32" fill="#d9cfc6"/><path d="M890 196 L1230 196" ${L(1.5)}/>
+    ${ch(biscuit, 'idle', 1110, 132, 72, 'md ms')}
+    ${ch(biscuit, 'patrol', 1040, 132, 72, 'mn')}
+    <g style="animation:leafsway 6s ease-in-out infinite;transform-origin:890px 58px" opacity=".28">${[[905, 70, 18], [935, 64, 14], [918, 96, 16], [960, 78, 12]].map(([x, y, s]) => leaf(x, y, s, '#4f7a5a')).join('')}</g>
+  </g>
+  <path d="M1060 58 L1060 228 M890 140 L1230 140" stroke="#fdf5e8" stroke-width="8"/><path d="M1060 58 L1060 228 M890 140 L1230 140" ${L(1.5)} opacity=".6"/>
+  <rect x="872" y="236" width="376" height="14" rx="4" fill="#fdf5e8" ${L(2)}/>
+  ${[900, 960, 1160, 1215].map((x, i) => `<path d="M${x - 14} 236 L${x - 10} 218 L${x + 10} 218 L${x + 14} 236Z" fill="#d9886e" ${L(1.5)}/><circle cx="${x}" cy="208" r="13" fill="${i % 2 ? '#9cc98f' : '#86b880'}" ${L(1.5)}/>${i % 2 ? `<circle cx="${x + 5}" cy="203" r="4" fill="#f7a8b8"/>` : ''}`).join('')}
+
+  <!-- porte d'entrée + noren -->
+  <rect x="1262" y="64" width="146" height="266" rx="6" fill="#fdf5e8" ${L(2.5)}/>
+  <rect x="1276" y="78" width="118" height="252" fill="#8a5a48" ${L(2)}/>
+  <rect x="1292" y="98" width="86" height="110" rx="6" class="md" fill="#cfe6f2" ${L(1.5)}/>
+  <rect x="1292" y="98" width="86" height="110" rx="6" class="ms" fill="#f2b48e" ${L(1.5)}/>
+  <rect x="1292" y="98" width="86" height="110" rx="6" class="mn" fill="#34498c" ${L(1.5)}/>
+  <circle cx="1384" cy="226" r="5" fill="${P.gold}" ${L(1.5)}/>
+  <path d="M1268 76 L1402 76" stroke="#6e4a3e" stroke-width="5" stroke-linecap="round"/>
+  ${['珈', '琲'].map((c, i) => `<path d="M${1272 + i * 66} 78 h62 v70 h-62z" fill="#56669a" ${L(1.5)}/><text x="${1303 + i * 66}" y="124" text-anchor="middle" font-size="34" fill="#fff6e6" font-family="serif">${c}</text>`).join('')}
+  <path d="M1335 64 L1335 50" ${L(1.5)}/><path d="M1326 50 Q1335 34 1344 50Z" fill="${P.gold}" ${L(1.5)}/>
+  <path d="M1270 336 L1400 336 L1416 356 L1254 356Z" fill="#c9a27e" ${L(1.5)}/>
+  <rect x="1290" y="210" width="90" height="0" class="mn"/>
+  <g class="mn"><rect x="1300" y="150" width="70" height="26" rx="4" fill="#fdf1dd" ${L(1.5)}/><text x="1335" y="168" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="15" fill="#c0666a">Closed</text></g>
+  <g class="md ms"><rect x="1300" y="150" width="70" height="26" rx="4" fill="#fdf1dd" ${L(1.5)}/><text x="1335" y="168" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="15" fill="#4f8a6a">Open</text></g>`;
+}
+
+/* ---------- Mur du fond : ardoise, étagères, tourne-disque, suspensions ---------- */
+function backWall() {
+  const jars = [['#f2b5a8', 0], ['#a9c7e0', 1], ['#f6dc9a', 0], ['#b8d8b0', 1], ['#e8c3e0', 0], ['#f2b5a8', 1]];
+  return `
+  <rect x="640" y="62" width="196" height="150" rx="8" fill="#b07b5f" ${L(2.5)}/>
+  <rect x="652" y="74" width="172" height="126" rx="4" fill="#3f5a4d"/>
+  <text x="738" y="100" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="20" fill="#f7f2e6">Menu</text>
+  ${[['Latte', '4.5'], ['Cappuccino', '4'], ['Americano', '3.5'], ['Caramel ★', '5']].map(([a, b], i) => `<text x="666" y="${124 + i * 20}" font-family="Nunito,sans-serif" font-weight="700" font-size="13" fill="#f7f2e6">${a}</text><text x="810" y="${124 + i * 20}" text-anchor="end" font-family="Nunito,sans-serif" font-weight="700" font-size="13" fill="#f7f2e6">${b}</text>`).join('')}
+  <circle cx="600" cy="44" r="22" fill="#fdf5e8" ${L(2.5)}/><path d="M600 44 L600 30 M600 44 L610 50" ${L(2)}/>
+  ${[110, 175].map(y => `<rect x="206" y="${y}" width="380" height="10" rx="2" fill="${WOOD}" ${L(1.8)}/>`).join('')}
+  ${jars.map(([c, k], i) => `<rect x="${220 + i * 34}" y="${k ? 146 : 140}" width="24" height="${k ? 29 : 35}" rx="6" fill="${c}" ${L(1.5)}/><rect x="${222 + i * 34}" y="${k ? 140 : 134}" width="20" height="7" rx="2" fill="#efe3d2" ${L(1.2)}/>`).join('')}
+  ${[0, 1, 2, 3].map(i => `<path d="M${430 + i * 30} 175 l0 -22 q12 -2 22 0 l0 22z" fill="${['#fffaf2', '#f6c6d0', '#fffaf2', '#a9c7e0'][i]}" ${L(1.5)}/>`).join('')}
+  <!-- tourne-disque (playlist) -->
+  <rect x="230" y="76" width="96" height="34" rx="5" fill="#8a5a48" ${L(2)}/>
+  <ellipse cx="272" cy="78" rx="34" ry="8" fill="#2e2a33" ${L(1.5)}/><ellipse cx="272" cy="78" rx="9" ry="2.5" fill="${P.coral}"/>
+  <path d="M312 72 L300 80" ${L(2)}/>
+  ${[0, 1.1, 2.2].map(d => `<text x="300" y="70" font-size="18" fill="${LN}" style="animation:note 3.3s ${d}s infinite">♪</text>`).join('')}
+  ${[380, 760, 1130].map(x => `<path d="M${x} 0 L${x} 54" ${L(1.5)}/><path d="M${x - 30} 80 Q${x} 44 ${x + 30} 80Z" fill="#f2c9a0" ${L(2)}/><circle cx="${x}" cy="82" r="8" fill="#ffe2a6" ${L(1.5)}/>`).join('')}`;
+}
+
+/* ---------- Comptoir du fond (station café) ---------- */
+function station() {
+  const syrups = [['#e8586a', 'Fraise'], ['#f3e1b5', 'Vanille'], ['#8a5a3c', 'Caramel'], ['#c7a6e6', 'Lavande']];
+  return `
+  <rect x="190" y="240" width="460" height="16" rx="3" fill="${TOP}" ${L(2)}/>
+  <rect x="196" y="256" width="448" height="74" fill="${WOOD}" ${L(2)}/>
+  <rect x="270" y="168" width="96" height="74" rx="10" fill="#cfd6dc" ${L(2)}/><rect x="270" y="168" width="96" height="16" rx="6" fill="#7fa48c" ${L(1.5)}/>
+  <circle cx="318" cy="204" r="9" fill="#fffaf2" ${L(1.5)}/><path d="M296 222 L296 234 M340 222 L340 234" ${L(3)}/>
+  <rect x="384" y="186" width="34" height="56" rx="6" fill="#5b4a52" ${L(1.8)}/><path d="M386 186 L401 160 L416 186Z" fill="#cfd6dc" ${L(1.5)}/>
+  ${syrups.map(([c], i) => `<rect x="${440 + i * 46}" y="196" width="26" height="46" rx="6" fill="#fffaf2" fill-opacity=".7" ${L(1.5)}/><rect x="${442 + i * 46}" y="214" width="22" height="26" rx="4" fill="${c}"/><rect x="${448 + i * 46}" y="184" width="10" height="12" fill="#3b3a4a"/>`).join('')}`;
+}
+
+/* ---------- Comptoir de service (devant le héros et Grand-mère) ---------- */
+function counter() {
+  return `
+  <path d="M184 378 L716 378 L730 400 L170 400Z" fill="${TOP}" ${L(2)}/>
+  <rect x="176" y="400" width="548" height="86" fill="#c99a78" ${L(2)}/>
+  ${[0, 1, 2, 3].map(i => `<rect x="${194 + i * 132}" y="414" width="112" height="58" rx="6" fill="#d9ab88" ${L(1.5)}/>`).join('')}
+  <!-- caisse -->
+  <rect x="196" y="340" width="56" height="40" rx="6" fill="#efe9e2" ${L(1.8)}/><rect x="202" y="322" width="44" height="22" rx="3" fill="#3d3a4a" ${L(1.5)}/>
+  <!-- pot à pourboires -->
+  <path d="M520 348 Q518 384 534 384 L554 384 Q570 384 568 348Z" fill="#fff" fill-opacity=".5" ${L(1.8)}/><circle cx="538" cy="378" r="5" fill="${P.gold}"/><circle cx="550" cy="380" r="4" fill="${P.gold}"/>
+  <!-- vitrine à pâtisseries -->
+  <rect x="580" y="326" width="128" height="54" rx="6" fill="#e9f3f6" fill-opacity=".7" ${L(2)}/>
+  ${[[604, '#f6c6d0'], [640, '#fbe3b0'], [676, '#c9a27e']].map(([x, c]) => `<path d="M${x - 14} 372 L${x + 14} 372 L${x + 14} 356 L${x - 14} 360Z" fill="${c}" ${L(1.3)}/><circle cx="${x + 6}" cy="354" r="3" fill="#e8586a"/>`).join('')}`;
+}
+
+/* ---------- Tables avec nappe ---------- */
+function table(cx, cy, chairCol, extra = '') {
+  return `
+  <path d="M${cx - 70} ${cy} Q${cx - 74} ${cy + 50} ${cx - 64} ${cy + 76} ${Array.from({ length: 8 }, (_, i) => `Q${cx - 64 + i * 16 + 8} ${cy + 86} ${cx - 64 + (i + 1) * 16} ${cy + 76}`).join(' ')} Q${cx + 74} ${cy + 50} ${cx + 70} ${cy}Z" fill="#fdf5e8" ${L(2)}/>
+  <ellipse cx="${cx}" cy="${cy}" rx="70" ry="22" fill="#fffaf2" ${L(2)}/>
+  ${extra}`;
+}
+function chairBack(cx, cy, col) { return `<rect x="${cx - 30}" y="${cy - 104}" width="60" height="70" rx="14" fill="${col}" ${L(2)}/>`; }
+function chairFront(cx, cy, col) {
+  return `<path d="M${cx - 34} ${cy + 58} L${cx + 34} ${cy + 58} L${cx + 30} ${cy + 74} L${cx - 30} ${cy + 74}Z" fill="${col}" ${L(1.8)}/>
+  <rect x="${cx - 32}" y="${cy + 6}" width="64" height="56" rx="14" fill="${col}" ${L(2)}/>
+  <path d="M${cx - 26} ${cy + 74} L${cx - 26} ${cy + 100} M${cx + 26} ${cy + 74} L${cx + 26} ${cy + 100}" ${L(4)}/>`;
+}
+const smallCup = (x, y) => `<ellipse cx="${x}" cy="${y + 8}" rx="14" ry="4.5" fill="#fffaf2" ${L(1.5)}/><path d="M${x - 9} ${y - 6} L${x + 9} ${y - 6} L${x + 7} ${y + 7} L${x - 7} ${y + 7}Z" fill="#fffaf2" ${L(1.5)}/><path d="M${x + 9} ${y - 3} q6 2 0 7" fill="none" ${L(1.5)}/>`;
+
+/* ---------- Coin pâtisserie (bientôt) ---------- */
+function pastryCorner() {
+  return `
+  <path d="M40 700 L330 700 L360 740 L60 740Z" fill="${TOP}" ${L(2)}/>
+  <rect x="60" y="740" width="300" height="110" fill="${WOOD}" ${L(2)}/>
+  <path d="M110 700 Q100 620 170 600 Q250 590 270 640 Q290 690 280 700Z" fill="#efe9e2" ${L(2)}/>
+  <path d="M130 690 Q150 650 170 690 M200 690 Q220 640 245 690" fill="none" ${L(1.5)} opacity=".6"/>
+  <path d="M74 860 L74 600 M346 860 L346 600" ${L(3)}/><path d="M74 610 Q210 660 346 610" fill="none" stroke="${P.coral}" stroke-width="5"/>
+  <rect x="140" y="760" width="140" height="58" rx="8" fill="#fdf1dd" ${L(2)}/>
+  <text x="210" y="784" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="16" fill="${P.ink}">Pastry corner</text>
+  <text x="210" y="805" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="700" font-size="12" fill="#8a6a5a">coming soon</text>`;
+}
+
+/* ---------- Interface de jeu (maquette) ---------- */
+function hud() {
+  const pill = (x, w, inner) => `<rect x="${x}" y="18" width="${w}" height="50" rx="25" fill="#fdf5e8" fill-opacity=".94" stroke="${P.ink}" stroke-width="2.5"/>${inner}`;
+  const btn = (x, label, icon) => `<g><circle cx="${x}" cy="842" r="34" fill="#fdf5e8" stroke="${P.ink}" stroke-width="2.5"/><text x="${x}" y="851" text-anchor="middle" font-size="26">${icon}</text>
+    <rect x="${x - 38}" y="872" width="76" height="20" rx="10" fill="${P.ink}"/><text x="${x}" y="886" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="12" fill="#fdf5e8">${label}</text></g>`;
+  const t = (m, txt, x, anchor = 'start') => `<text class="${m}" x="${x}" y="50" text-anchor="${anchor}" font-family="Nunito,sans-serif" font-weight="800" font-size="18" fill="${P.ink}">${txt}</text>`;
+  return `<g class="hudl">
+    ${pill(18, 250, `<circle cx="48" cy="43" r="14" fill="#ffd27a" stroke="${P.ink}" stroke-width="2" class="md ms"/><circle cx="48" cy="43" r="13" fill="#fff3c4" stroke="${P.ink}" stroke-width="2" class="mn"/>`)}
+    ${t('md', 'Day 3 · 08:30', 74)}${t('ms', 'Day 3 · 17:45', 74)}${t('mn', 'Day 3 · Closed', 74)}
+    ${pill(282, 170, `${heart(312, 42, 1.2)}<text x="334" y="50" font-family="Nunito,sans-serif" font-weight="800" font-size="18" fill="${P.ink}">8 / 12</text>`)}
+    ${pill(560, 480, `<text x="592" y="51" font-size="22" fill="${P.ink}">♪</text><rect x="1000" y="31" width="24" height="24" rx="6" fill="${P.ink}"/><path d="M1008 37 L1008 49 M1016 37 L1016 49" stroke="#fdf5e8" stroke-width="3"/>`)}
+    ${t('md', 'Lo-fi morning · track 2', 620)}${t('ms', 'Golden hour jazz · track 5', 620)}${t('mn', 'Night rain · track 1', 620)}
+    ${pill(1400, 182, `<circle cx="1430" cy="43" r="14" fill="${P.gold}" stroke="${P.ink}" stroke-width="2"/><text x="1430" y="49" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="14" fill="#8a6a3c">c</text><text x="1456" y="50" font-family="Nunito,sans-serif" font-weight="800" font-size="18" fill="${P.ink}">128</text>`)}
+    ${btn(1330, 'Recipes', '📖')}${btn(1420, 'Stock', '🫙')}${btn(1510, 'Shop', '🛍')}
+  </g>`;
+}
+
+/* ---------- Zones du plan ---------- */
+const ZONES = [
+  [1, 'Entrance and Moka\'s reception', 'Customers come in; Moka wakes up and leads them to their favourite table.', 1236, 40, 210, 500],
+  [2, 'Tables', 'Customers sit and wait; order bubbles appear above them. Pip brings menus, Kettle serves.', 470, 420, 790, 440],
+  [3, 'Service counter', 'The hero takes orders and hands over drinks; Grandma sits beside them on her stool.', 170, 300, 560, 196],
+  [4, 'Coffee station', 'Clicking here zooms into the drink-making screen (cups, milk, syrups, recipes).', 190, 150, 460, 108],
+  [5, 'Window to the street', 'Biscuit is visible outside: napping by day, on patrol at night.', 868, 36, 384, 222],
+  [6, 'Pastry corner (later)', 'Covered until the owl chef and the apprentice arrive.', 30, 590, 350, 280],
+  [7, 'Record player', 'The playlist: click to change the music; some customers ask for a song.', 214, 54, 132, 70]
+];
+function zones() {
+  return `<g class="zone">${ZONES.map(([n, , , x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="#fff6c8" fill-opacity=".18" stroke="${P.ink}" stroke-width="3" stroke-dasharray="10 8"/>
+    <circle cx="${x + 22}" cy="${y + 22}" r="16" fill="${P.ink}"/><text x="${x + 22}" y="${y + 28}" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="16" fill="#fdf5e8">${n}</text>`).join('')}</g>`;
+}
+
+/* ---------- Assemblage (ordre de dessin = profondeur) ---------- */
+const scene = document.getElementById('scene');
+scene.innerHTML = `
+  ${shell()}
+  ${backWall()}
+  ${station()}
+  ${ch(() => grandma(), 'tea', 252, 236, 140, 'md ms')}
+  ${ch(() => hero('m'), 'espresso', 392, 232, 150, 'md ms')}
+  ${ch(kettle, 'idle', 560, 258, 110, 'mn')}
+  ${counter()}
+  <ellipse cx="900" cy="650" rx="380" ry="150" fill="#f3e3cf" ${L(2)}/><ellipse cx="900" cy="650" rx="352" ry="132" fill="none" stroke="${P.coral}" stroke-width="3" stroke-dasharray="14 10"/>
+  <g class="md ms">${[[1010, 420, 120, 34], [1120, 470, 90, 26], [960, 500, 70, 20]].map(([x, y, rx, ry], i) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#sunPatch)" style="animation:dapple ${5 + i}s ease-in-out infinite;transform-origin:${x}px ${y}px"/>`).join('')}</g>
+  <!-- accueil de Moka -->
+  <ellipse cx="1330" cy="512" rx="62" ry="18" fill="#c99a78" ${L(2)}/><ellipse cx="1330" cy="502" rx="56" ry="16" fill="${P.coral}" ${L(2)}/>
+  ${ch(moka, 'guide', 1268, 336, 132, 'md')}
+  ${ch(moka, 'idle', 1268, 336, 132, 'ms')}
+  ${ch(moka, 'sleep', 1268, 336, 132, 'mn')}
+  ${ch(() => customer('f'), 'walk', 1270, 196, 130, 'md')}
+  ${ch(() => customer('m'), 'coffee', 1270, 196, 130, 'ms')}
+  <!-- table B -->
+  <g class="md ms">${chairBack(1040, 520, '#9fd0bd')}</g>
+  ${ch(() => customer('m'), 'wait', 965, 362, 150, 'md')}
+  ${table(1040, 520, '#9fd0bd', `<g class="md">${smallCup(1070, 512)}</g>`)}
+  ${chairFront(1040, 520, '#ec9f8e')}
+  <!-- table A -->
+  <g class="md ms">${chairBack(720, 560, '#ec9f8e')}</g>
+  ${ch(() => customer('f'), 'wait', 645, 402, 150, 'md ms')}
+  ${table(720, 560, '#ec9f8e', smallCup(690, 554))}
+  ${chairFront(720, 560, '#9fd0bd')}
+  ${ch(pip, 'fly', 840, 360, 92, 'md ms')}
+  ${ch(pip, 'idle', 1452, 196, 60, 'mn')}
+  <!-- table C + Kettle -->
+  ${table(1220, 700, '#9fd0bd', `<path d="M1206 680 l14 -24 l14 24z" fill="#fdf1dd" ${L(1.5)}/>`)}
+  ${ch(kettle, 'serve', 1010, 610, 132, 'md')}
+  ${ch(kettle, 'idle', 1010, 610, 132, 'ms')}
+  <!-- table D (tasse oubliée : à débarrasser) -->
+  ${table(560, 760, '#ec9f8e', smallCup(586, 752))}
+  ${ch(mice, 'clean', 760, 520, 240, 'mn', true)}
+  ${pastryCorner()}
+  <path d="M1500 900 L1480 820 L1560 820 L1540 900Z" fill="#d9886e" ${L(2)}/>
+  ${[[1490, 790, 40], [1550, 770, 44], [1520, 730, 40], [1470, 740, 30]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#86b880" ${L(2)}/>`).join('')}
+  <!-- lumière selon l'heure -->
+  <rect class="ms tint" x="0" y="0" width="1600" height="900" fill="#f4bfa0"/>
+  <rect class="mn tint" x="0" y="0" width="1600" height="900" fill="#5a6aa8"/>
+  <g class="ms mn glow">${[380, 760, 1130].map(x => `<ellipse cx="${x}" cy="150" rx="190" ry="150" fill="url(#warm)"/>`).join('')}<ellipse cx="1335" cy="150" rx="90" ry="110" fill="url(#warm)" opacity=".6"/></g>
+  ${hud()}
+  ${zones()}`;
+
+document.getElementById('legend').innerHTML = ZONES.map(([n, t, d]) => `<div><b>${n}</b><strong>${t}</strong><span>${d}</span></div>`).join('');
+document.getElementById('modes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  scene.dataset.mode = b.dataset.m;
+  document.querySelectorAll('#modes button').forEach(x => x.classList.toggle('on', x === b));
+});
+document.getElementById('tz').addEventListener('change', e => scene.classList.toggle('zones', e.target.checked));
+document.getElementById('th').addEventListener('change', e => scene.classList.toggle('hud', e.target.checked));
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Komorebi Character Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #3b2838; --paper: #fdf5e8; --card: #fffaf2; --sage: #93b89f; --sage-d: #7fa48c;
+    --cream: #f6e7cf; --coral: #ee9c8c; --muted: #6e5a68; --line: #ead9c6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.5 Nunito, system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1, h2, h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; }
+  h1 { font-size: clamp(28px, 4vw, 40px); font-style: italic; }
+  .lead { color: var(--muted); max-width: 720px; margin: 6px 0 24px; }
+
+  /* bannière : la troupe devant le café */
+  .banner { position: relative; border-radius: 22px; overflow: hidden; border: 3px solid var(--ink); aspect-ratio: 16 / 8; min-height: 300px; background: #94d0f2 center / cover no-repeat; transition: background-image .4s; }
+  .banner::after { content: ""; position: absolute; inset: auto 0 0 0; height: 30%; background: linear-gradient(transparent, rgba(59, 40, 56, .35)); }
+  .lineup { position: absolute; left: 0; right: 0; bottom: 4%; display: flex; justify-content: center; align-items: flex-end; gap: 0; z-index: 1; transition: filter .4s; }
+  .lineup svg { height: clamp(90px, 17vw, 190px); width: auto; margin: 0 -1.2%; }
+  .lineup .s-pip { height: clamp(60px, 10vw, 110px); align-self: flex-start; }
+  .lineup .s-mice { height: clamp(55px, 9vw, 100px); }
+  .tod { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(253, 245, 232, .85); border: 2px solid var(--ink); }
+  .tod button, .states button { font: 700 13px/1 Nunito, sans-serif; color: var(--ink); background: none; border: 0; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+  .tod button.on, .states button.on { background: var(--ink); color: var(--paper); }
+
+  /* palette partagée */
+  .palette { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0 8px; }
+  .sw { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; background: var(--card); border: 2px solid var(--line); border-radius: 999px; font-size: 13px; }
+  .sw i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); display: block; }
+  .note { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+
+  /* fiches */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+  .card { background: var(--card); border: 3px solid var(--ink); border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 5px 0 var(--ink); }
+  .stage { position: relative; background: radial-gradient(circle at 50% 75%, #fff 0, var(--cream) 70%); border-bottom: 3px solid var(--ink); display: flex; justify-content: center; padding: 10px 0 56px; }
+  .stage svg { width: 230px; height: auto; display: block; }
+  .stage.wide svg { width: 280px; }
+  .states { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 250, 242, .92); border: 2px solid var(--ink); }
+  .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .role { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--sage-d); }
+  .body p { margin: 0; }
+  .body ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .dots { display: flex; gap: 6px; margin-top: 4px; }
+  .dots i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+  footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+
+</style>
+<link rel="stylesheet" href="cast.css">
+<script src="cast.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Café Komorebi — Character Sheet</h1>
+  <p class="lead">The main cast drawn in 2D with the café's palette, the same plum outline and the same flat cel shading as the 3D diorama. Switch the time of day to check how they sit in front of the café, and use the buttons on each card to play their animations.</p>
+
+  <div class="banner" id="banner">
+    <div class="tod" id="tod">
+      <button data-t="morning" class="on">Morning</button>
+      <button data-t="sunset">Sunset</button>
+      <button data-t="night">Night</button>
+    </div>
+    <div class="lineup" id="lineup"></div>
+  </div>
+
+  <div class="palette" id="palette"></div>
+  <p class="note">Every costume colour comes from the café: the uniforms are espresso brown or black with brass details like the café's gold sign trim, Moka's apron and the takeaway cups match the brown uniform, Biscuit's bandana is the red post box, Grandma's cardigan is the shutter blue, and Kettle wears the fascia green band. Outlines everywhere use the diorama's ink colour #3b2838.</p>
+
+  <div class="grid" id="grid"></div>
+  <footer>Saved in ~/cafe-komorebi/characters. Next step: turnaround views (front, side, back) and walk cycles for the hero and Moka.</footer>
+</div>
+
+<script>
+/* ---------- Fiches ---------- */
+const CAST = [
+  { id: 'heroM', name: 'Ren (boy version)', role: 'Player character · café manager', fn: () => hero('m'), brooch: 'REN', states: [['city', 'City'], ['espresso', 'Brown'], ['noir', 'Black'], ['transform', 'Transform']], line: 'Calm lo-fi student: studies with music, glasses always slipping, secretly great with people.',
+    notes: ['City: lavender hoodie, dark jeans, headphones around the neck (the playlist)', 'Uniform: dark brown or black shirt and apron, gold stitching, cap with a gold Moka logo', 'Gold brooch engraved with the player\'s chosen name'], colors: ['#aea2cc', '#7686b2', '#74513f', '#36313d', P.gold] },
+  { id: 'heroF', name: 'Hana (girl version)', role: 'Player character · café manager', fn: () => hero('f'), brooch: 'HANA', states: [['city', 'City'], ['espresso', 'Brown'], ['noir', 'Black'], ['transform', 'Transform']], line: 'Warm and dreamy: headphones on, hums while she works, remembers every regular\'s order.',
+    notes: ['City: chocolate sweater with a little pendant, wide light jeans, white headphones', 'Transformation ties her long wavy hair into a ponytail with a gold scrunchie', 'Same uniforms and gold name brooch as the boy version'], colors: ['#a8705a', '#a3bcdc', '#74513f', '#36313d', P.gold] },
+  { id: 'moka', name: 'Moka', role: 'Café leader · seats customers', fn: moka, states: [['idle', 'Grumpy'], ['walk', 'Walk'], ['sleep', 'Nap'], ['cuddle', 'Cuddle']], line: 'Always a little annoyed, always cute. Naps between customers and pretends to hate the cuddles she gets.',
+    notes: ['Grey and white coat with a white blaze, white paws and a white tail tip', 'Concierge outfit: purple jacket with gold buttons, peaked cap with a gold paw badge', 'Half-closed eyes and frowning brows; naps like a dozing concierge, cap slipping over her eyes'], colors: ['#a6abb7', '#f7f5f2', '#6b4a3c', P.gold, '#e8c65e'] },
+  { id: 'biscuit', name: 'Biscuit', role: 'Night guard · takes out the trash', fn: biscuit, states: [['stray', 'Lost'], ['eat', 'Eating'], ['named', 'Named'], ['idle', 'Adopted'], ['patrol', 'Patrol'], ['sleep', 'Nap']], line: 'A lost husky the hero feeds at the bins; once he trusts them he guards the café every night.',
+    notes: ['Black and white husky mask with pale blue eyes', 'Lost: drooping ears, sad brows, frayed rope collar, a leaf in his fur', 'Named: a gold BISCUIT tag on his collar; adopted: red bandana with the tag, navy cap on patrol'], colors: ['#57545f', '#f7f5f2', '#8cc4ea', P.red, P.gold] },
+  { id: 'grandma', name: 'Grandma', role: 'Retired robotics engineer · tutorial guide', fn: grandma, states: [['tea', 'Tea'], ['tinker', 'Tinker']], line: 'Warm, stubborn and funny; her gift is fading, shown by faint sparkles.',
+    notes: ['Shutter-blue cardigan, sage skirt, cream blouse', 'Pencil in her bun and a gold gear brooch: the engineer', 'The gear brooch mirrors the hero\'s name brooch: an heirloom'], colors: [P.shutter, P.sageDD, P.cream, P.gold, P.wood] },
+  { id: 'pip', name: 'Pip', role: 'Brings menus · carries orders', fn: pip, states: [['idle', 'Idle'], ['fly', 'Fly with menu']], line: 'Chatty, fast, a little vain about her feathers.',
+    notes: ['Java sparrow: grey body, black cap, white cheeks, pink beak', 'Tiny sage scarf so she reads as café staff', 'Menu card uses the café cream and leaf logo'], colors: [P.grey, '#3b3a4a', '#ffffff', P.nose, P.sageD] },
+  { id: 'kettle', name: 'Kettle', role: 'Robot server · Grandma\'s prototype', fn: kettle, states: [['idle', 'Idle'], ['serve', 'Serve']], line: 'Earnest and beepy; only Moka seems to understand it.',
+    notes: ['Built from an enamel kettle: cream body, fascia-green band', 'Lid knob glows like the café lanterns', 'Steam from the spout when it is happy'], colors: [P.cream, P.sageD, P.wood, P.lamp, P.screen] },
+  { id: 'mice', name: 'The Crumb Crew', role: 'Night cleaning team', fn: mice, wide: true, states: [['idle', 'Idle'], ['clean', 'Clean']], line: 'Tiny, hard-working, a little chaotic. Crumbs in exchange for cleaning.',
+    notes: ['Caps in sage, coral and cream: one per café colour', 'Props: a tissue to wipe tables, a broom, a crumb bag; dust puffs while cleaning', 'Names still to choose (one per mouse)'], colors: [P.mouse, P.pink, P.sage, P.coral, P.cream] },
+  { id: 'custF', name: 'Office worker (woman)', role: 'Customer · morning rush', fn: () => customer('f'), states: [['walk', 'Walk in'], ['wait', 'Order'], ['coffee', 'Coffee to go']], line: 'Rushes in before work, orders the same latte, leaves smiling.',
+    notes: ['Beige trench coat with a sage scarf and a tote bag', 'Waiting: checks her phone, order bubble with patience heart', 'Leaves waving with a café takeaway cup'], colors: ['#dcbc94', P.sage, '#3e3446', P.cream, '#6b4a3c'] },
+  { id: 'custM', name: 'Office worker (man)', role: 'Customer · morning rush', fn: () => customer('m'), states: [['walk', 'Walk in'], ['wait', 'Order'], ['coffee', 'Coffee to go']], line: 'Still half asleep until the first sip; always in a hurry.',
+    notes: ['Blue-grey suit, coral tie, brown briefcase', 'Waiting: checks his watch and yawns', 'Coffee to go: wide awake, waves goodbye'], colors: ['#7682a2', P.coralD, P.brown, '#ecc4a0', '#6b4a3c'] },
+];
+
+const svg = (c, state, cls = '') => `<svg class="${cls}" viewBox="0 0 ${c.wide ? 260 : 200} 260" data-state="${state}" role="img" aria-label="${c.name}">${c.fn()}</svg>`;
+
+// bannière
+const lineupOrder = ['custF', 'grandma', 'kettle', 'heroM', 'moka', 'heroF', 'biscuit', 'mice', 'pip', 'custM'];
+document.getElementById('lineup').innerHTML = lineupOrder.map(id => {
+  const c = CAST.find(k => k.id === id);
+  const st = { heroM: 'espresso', heroF: 'noir', grandma: 'tea', pip: 'fly', moka: 'sleep', custF: 'walk', custM: 'coffee' }[id] || 'idle';
+  return svg(c, st, 's-' + id);
+}).join('');
+
+// palette
+const PAL = [['Façade sage', P.sage], ['Fascia green', P.sageD], ['Cream', P.cream], ['Awning coral', P.coral], ['Noren navy', P.navy], ['Shutter blue', P.shutter], ['Café wood', P.wood], ['Brass', P.gold], ['Post-box red', P.red], ['Lantern glow', P.lamp], ['Ink outline', P.ink]];
+document.getElementById('palette').innerHTML = PAL.map(([n, c]) => `<span class="sw"><i style="background:${c}"></i>${n}</span>`).join('');
+
+// fiches
+const grid = document.getElementById('grid');
+grid.innerHTML = CAST.map(c => `
+  <article class="card" data-id="${c.id}">
+    <div class="stage ${c.wide ? 'wide' : ''}">${svg(c, c.states[0][0])}
+      <div class="states">${c.states.map(([k, l], i) => `<button data-s="${k}" class="${i ? '' : 'on'}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="body">
+      <span class="role">${c.role}</span>
+      <h3>${c.name}</h3>
+      <p>${c.line}</p>
+      <ul>${c.notes.map(n => `<li>${n}</li>`).join('')}</ul>
+      ${c.brooch ? `<label class="namefield">Name on the brooch <input maxlength="8" value="${c.brooch}"></label>` : ''}
+      <div class="dots">${c.colors.map(col => `<i style="background:${col}"></i>`).join('')}</div>
+    </div>
+  </article>`).join('');
+
+grid.addEventListener('input', e => {
+  if (!e.target.matches('.namefield input')) return;
+  const card = e.target.closest('.card'), v = e.target.value.trim().toUpperCase() || ' ';
+  card.querySelectorAll('.brooch-name').forEach(t => t.textContent = v);
+});
+grid.addEventListener('click', e => {
+  const b = e.target.closest('.states button'); if (!b) return;
+  const card = b.closest('.card'), s = card.querySelector('svg');
+  card.querySelectorAll('.states button').forEach(x => x.classList.toggle('on', x === b));
+  s.dataset.state = b.dataset.s;
+  if (b.dataset.s === 'transform') { // rejouer l'animation à chaque clic
+    const clone = s.cloneNode(true); s.replaceWith(clone);
+  }
+});
+
+
+
+// moment de la journée de la bannière
+const banner = document.getElementById('banner'), lineup = document.getElementById('lineup');
+const TOD = { morning: 'none', sunset: 'sepia(.22) saturate(1.15) brightness(.96) hue-rotate(-8deg)', night: 'brightness(.74) saturate(.85) hue-rotate(10deg)' };
+function setTod(t) {
+  banner.style.backgroundImage = `url(cafe-${t}.jpg)`;
+  lineup.style.filter = TOD[t];
+  document.querySelectorAll('#tod button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+}
+document.getElementById('tod').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTod(b.dataset.t); });
+setTod('morning');
+</script>
+</body>
+</html>

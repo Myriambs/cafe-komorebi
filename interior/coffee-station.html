@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Komorebi Coffee Station</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../characters/cast.css">
+<style>
+  :root { --ink: #3b2838; --paper: #fdf5e8; --card: #fffaf2; --muted: #6e5a68; --line: #ead9c6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.5 Nunito, system-ui, sans-serif; }
+  .wrap { max-width: 1640px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font: italic 600 clamp(24px, 3vw, 34px) Fraunces, Georgia, serif; margin: 0; }
+  .lead { color: var(--muted); margin: 4px 0 16px; max-width: 980px; }
+  .lead a { color: var(--ink); font-weight: 700; }
+  .frame { position: relative; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 5px 0 var(--ink); background: #000; }
+  #scene { display: block; width: 100%; height: auto; user-select: none; }
+  .hit { cursor: pointer; }
+  .hit:hover > .lift { transform: translateY(-5px); }
+  .lift { transition: transform .15s; }
+  .off { opacity: .45; filter: grayscale(.7); cursor: not-allowed; }
+  .sel { stroke: #e3a33a !important; stroke-width: 5 !important; stroke-dasharray: none !important; }
+  @keyframes floatUp { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-60px); opacity: 0; } }
+  @keyframes popIn { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+  @keyframes flyAway { 0% { transform: translate(0, 0); } 30% { transform: translate(-40px, -60px); } 100% { transform: translate(-700px, -700px); } }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .fx { animation: floatUp 1.2s ease-out forwards; pointer-events: none; }
+  .pop { animation: popIn .35s ease-out; transform-box: fill-box; transform-origin: center; }
+  .shake { animation: shake .3s 2; }
+
+  /* livre de recettes */
+  .book { position: absolute; inset: 0; display: none; place-items: center; background: rgba(59, 40, 56, .45); }
+  .book.open { display: grid; }
+  .pages { width: min(920px, 90%); display: grid; grid-template-columns: 1fr 1fr; background: #fffaf2; border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 var(--ink); overflow: hidden; }
+  .page { padding: 22px 26px; }
+  .page + .page { border-left: 3px dashed var(--line); }
+  .page h2 { font: italic 600 24px Fraunces, serif; margin: 0 0 10px; }
+  .rec { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-weight: 700; }
+  .rec span { color: var(--muted); font-weight: 600; font-size: 14px; }
+  .locked { opacity: .55; }
+  .close { margin-top: 14px; font: 800 14px Nunito, sans-serif; padding: 8px 16px; border-radius: 999px; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; }
+  .help { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .help div { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+  .help b { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Café Komorebi — Coffee Station</h1>
+  <p class="lead">The zoom-in screen for making drinks, and a small playable prototype. Take a cup, add ingredients, then click the matching order ticket to serve it. Pip carries it to the table. Back to the <a href="room-view.html">room view</a>.</p>
+  <div class="frame">
+    <svg id="scene" viewBox="0 0 1600 900" role="img" aria-label="Coffee station"></svg>
+    <div class="book" id="book">
+      <div class="pages">
+        <div class="page"><h2>Recipes learned</h2><div id="known"></div></div>
+        <div class="page"><h2>Not learned yet</h2><div id="lockedList"></div>
+          <p style="color:var(--muted);font-size:14px;margin:12px 0 0">Buy recipe books in the shop. Read a page with the hero and they learn it as a new skill.</p>
+          <button class="close" id="closeBook">Close the book</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="help">
+    <div><b>1. Take a cup</b>Click the cup stack (front left). The new cup is selected; click any cup to select it.</div>
+    <div><b>2. Add ingredients</b>Espresso machine, hot water, milk, foam and caramel syrup. Each use takes one from stock.</div>
+    <div><b>3. Serve</b>Click the customer's ticket at the top. Right drink: coins and a happy customer. Wrong drink: the ticket tells you what they wanted.</div>
+    <div><b>Stock</b>The small numbers show what is left. Click the stock button to restock for coins.</div>
+  </div>
+</div>
+
+<script src="../characters/cast.js"></script>
+<script>
+/* ---------- Style ---------- */
+const LN = '#7a5a4a';
+const L = (w = 2) => `stroke="${LN}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+const TXT = (x, y, t, s = 16, a = 'middle', c = P.ink, w = 800) => `<text x="${x}" y="${y}" text-anchor="${a}" font-family="Nunito,sans-serif" font-weight="${w}" font-size="${s}" fill="${c}">${t}</text>`;
+
+/* ---------- Données de jeu ---------- */
+const ING = {
+  espresso: { name: 'Espresso', color: '#5a3424' },
+  water: { name: 'Hot water', color: '#7aaed6' },
+  milk: { name: 'Milk', color: '#fffaf2' },
+  foam: { name: 'Foam', color: '#ffffff' },
+  caramel: { name: 'Caramel', color: '#d99a3c' }
+};
+const RECIPES = [
+  { id: 'espresso', name: 'Espresso', price: 3, need: ['espresso'] },
+  { id: 'americano', name: 'Americano', price: 3.5, need: ['espresso', 'water'] },
+  { id: 'latte', name: 'Latte', price: 4.5, need: ['espresso', 'milk'] },
+  { id: 'cappuccino', name: 'Cappuccino', price: 4, need: ['espresso', 'milk', 'foam'] },
+  { id: 'caramel', name: 'Caramel latte', price: 5, need: ['espresso', 'milk', 'caramel'] }
+];
+const LOCKED = [['Mocha', 'needs chocolate · Café Classics book'], ['Matcha latte', 'needs matcha · Tea Time book'], ['Iced latte', 'needs ice · Summer book'], ['Strawberry mocktail', 'needs strawberry syrup · Evening Mocktails book']];
+const CUSTOMERS = [['Office worker', '#3e3446', '#fbe0cc'], ['Salaryman', '#5b4450', '#ecc4a0'], ['Student', '#8a5242', '#fde3d0'], ['Postman', '#2b2433', '#e8bf98'], ['Old couple', '#e6e0e8', '#fbe0cc']];
+
+const S = {
+  coins: 128, happy: 8, goal: 12,
+  stock: { cups: 12, espresso: 14, milk: 10, caramel: 4 },
+  cups: [null, null, null], sel: -1,
+  orders: [], nextId: 1, ticketTick: 0
+};
+const fmt = n => (Math.round(n * 100) / 100).toString();
+
+/* ---------- Décor ---------- */
+function decor() {
+  const tiles = [];
+  for (let y = 0; y < 380; y += 34) for (let x = (y / 34) % 2 ? -34 : 0; x < 1600; x += 68) tiles.push(`<rect x="${x}" y="${y}" width="66" height="32" rx="3" fill="#f6ead8" ${L(1)} opacity=".7"/>`);
+  return `
+  <rect width="1600" height="380" fill="#f8ecd9"/>${tiles.join('')}
+  <rect x="0" y="380" width="1600" height="520" fill="#efe3d2"/>
+  <path d="M0 380 L1600 380" ${L(3)}/><rect x="0" y="380" width="1600" height="16" fill="#e3d3bd"/>
+  ${Array.from({ length: 9 }, (_, i) => `<path d="M${i * 200} 396 L${i * 200 - 60} 900" ${L(1)} opacity=".18"/>`).join('')}
+  <!-- étagère à sirops -->
+  <rect x="1130" y="300" width="450" height="16" rx="3" fill="${P.wood}" ${L(2)}/>
+  <!-- tringle à tickets -->
+  <path d="M500 84 L1110 84" stroke="#b9bcc4" stroke-width="6" stroke-linecap="round"/><path d="M500 84 L1110 84" ${L(1.5)} opacity=".6"/>
+  ${[1600 - 40].map(x => '').join('')}`;
+}
+
+/* ---------- Appareils (cliquables) ---------- */
+const badge = (x, y, id) => `<g id="badge-${id}"><circle cx="${x}" cy="${y}" r="17" fill="${P.ink}"/><text id="cnt-${id}" x="${x}" y="${y + 6}" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="15" fill="#fdf5e8">0</text></g>`;
+const label = (x, y, t) => `<rect x="${x - 62}" y="${y - 16}" width="124" height="28" rx="14" fill="#fffaf2" ${L(1.5)}/>${TXT(x, y + 4, t, 14)}`;
+function machines() {
+  return `
+  <g class="hit" data-act="espresso" id="m-espresso"><g class="lift">
+    <rect x="110" y="170" width="340" height="250" rx="26" fill="#cfd6dc" ${L(2.5)}/>
+    <rect x="110" y="170" width="340" height="54" rx="22" fill="${P.sageD}" ${L(2)}/>
+    ${catLogo(280, 197, 9)}
+    <circle cx="190" cy="270" r="26" fill="#fffaf2" ${L(2)}/><path d="M190 270 L190 252 M190 270 L203 278" ${L(2)}/>
+    <circle cx="370" cy="262" r="12" fill="${P.coral}" ${L(1.5)}/><circle cx="370" cy="300" r="12" fill="${P.sage}" ${L(1.5)}/>
+    <rect x="220" y="320" width="120" height="26" rx="8" fill="#7d8592" ${L(2)}/><rect x="262" y="346" width="36" height="20" rx="4" fill="#5b4a52" ${L(1.5)}/>
+    <path d="M340 333 L410 330" stroke="${P.ink}" stroke-width="12" stroke-linecap="round"/><path d="M340 333 L410 330" stroke="#3d3a4a" stroke-width="7" stroke-linecap="round"/>
+    <rect x="150" y="420" width="260" height="22" rx="6" fill="#9aa1ab" ${L(2)}/>
+    ${label(280, 470, 'Espresso')}
+  </g>${badge(440, 186, 'espresso')}</g>
+
+  <g class="hit" data-act="water" id="m-water" transform="translate(0 70)"><g class="lift">
+    <path d="M520 246 Q520 220 560 220 L600 220 Q640 220 640 246 L636 432 L524 432Z" fill="#c9cfd6" ${L(2.5)}/>
+    <path d="M540 220 L540 196 Q580 180 620 196 L620 220" fill="#3d3a4a" ${L(2)}/>
+    <path d="M640 260 Q672 262 668 300 Q664 330 638 334" fill="none" stroke="${P.ink}" stroke-width="10" stroke-linecap="round"/><path d="M640 260 Q672 262 668 300 Q664 330 638 334" fill="none" stroke="#3d3a4a" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="580" cy="320" r="26" fill="#fff" ${L(2)}/><path d="M580 302 Q596 320 590 330 Q584 340 576 336 Q566 330 572 316Z" fill="#e8705f"/>
+    ${label(580, 470, 'Hot water')}
+  </g></g>
+
+  <g class="hit" data-act="milk" id="m-milk" transform="translate(0 70)"><g class="lift">
+    <path d="M712 300 L800 300 L812 432 L700 432Z" fill="#dfe4ea" ${L(2.5)}/><path d="M800 312 Q836 320 830 360 Q826 390 806 394" fill="none" stroke="${P.ink}" stroke-width="10" stroke-linecap="round"/><path d="M800 312 Q836 320 830 360 Q826 390 806 394" fill="none" stroke="#c4cad2" stroke-width="5" stroke-linecap="round"/>
+    <path d="M700 300 L690 288 L724 292Z" fill="#dfe4ea" ${L(1.5)}/>
+    <rect x="690" y="208" width="72" height="90" rx="8" fill="#fffaf2" ${L(2)}/><path d="M690 230 L762 230" ${L(1.5)}/>
+    <circle cx="712" cy="262" r="10" fill="#f2d6d8"/><circle cx="740" cy="270" r="8" fill="#f2d6d8"/>${TXT(726, 222, 'MILK', 12, 'middle', '#8a6a5a')}
+    ${label(756, 470, 'Milk')}
+  </g>${badge(780, 212, 'milk')}</g>
+
+  <g class="hit" data-act="foam" id="m-foam" transform="translate(0 70)"><g class="lift">
+    <rect x="880" y="268" width="112" height="164" rx="22" fill="#e7ecf0" ${L(2.5)}/><rect x="880" y="268" width="112" height="34" rx="16" fill="#9aa1ab" ${L(2)}/>
+    <path d="M904 360 Q904 334 926 338 Q936 318 956 330 Q976 326 976 348 Q990 360 972 376 L910 376 Q894 372 904 360Z" fill="#fff" ${L(2)}/>
+    <circle cx="936" cy="408" r="10" fill="${P.sage}" ${L(1.5)}/>
+    ${label(936, 470, 'Foam')}
+  </g></g>
+
+  <!-- sirops : caramel débloqué, les autres en boutique -->
+  ${[['caramel', 'Caramel', '#c98a3a', true], ['vanilla', 'Vanilla', '#f3e1b5', false], ['strawberry', 'Strawberry', '#e8586a', false], ['lavender', 'Lavender', '#c7a6e6', false]].map(([id, n, c, ok], i) => {
+    const x = 1170 + i * 104;
+    return `<g ${ok ? `class="hit" data-act="caramel" id="m-caramel"` : `class="off"`}><g class="lift">
+      <rect x="${x}" y="196" width="66" height="104" rx="12" fill="#fffaf2" fill-opacity=".75" ${L(2)}/><rect x="${x + 4}" y="232" width="58" height="64" rx="9" fill="${c}"/>
+      <rect x="${x + 22}" y="160" width="22" height="36" fill="#3d3a4a" ${L(1.5)}/><path d="M${x + 33} 160 L${x + 33} 146 L${x + 58} 146" ${L(5)}/>
+      <rect x="${x + 10}" y="248" width="46" height="24" rx="4" fill="#fffaf2" ${L(1.2)}/>${TXT(x + 33, 265, n.slice(0, 7), 11, 'middle', '#6e5040')}
+      ${ok ? '' : `<g><circle cx="${x + 33}" cy="214" r="14" fill="${P.ink}"/><rect x="${x + 26}" y="212" width="14" height="10" rx="2" fill="#fdf5e8"/><path d="M${x + 28} 212 Q${x + 28} 202 ${x + 33} 202 Q${x + 38} 202 ${x + 38} 212" fill="none" stroke="#fdf5e8" stroke-width="2.5"/></g>`}
+    </g>${ok ? badge(x + 64, 196, 'caramel') : ''}</g>`;
+  }).join('')}
+  ${TXT(1352, 345, 'Locked syrups: buy them in the shop', 14, 'middle', '#8a6a5a', 700)}`;
+}
+
+/* ---------- Pile de gobelets, emplacements, poubelle ---------- */
+function front() {
+  return `
+  <g class="hit" data-act="cup" id="m-cup"><g class="lift">
+    ${[0, 1, 2, 3, 4].map(i => `<path d="M${70} ${700 - i * 22} L${170} ${700 - i * 22} L${160} ${770 - i * 22} L${80} ${770 - i * 22}Z" fill="#fffaf2" ${L(2)}/>`).join('')}
+    ${label(120, 812, 'Take a cup')}
+  </g>${badge(176, 600, 'cups')}</g>
+  ${[0, 1, 2].map(i => `<g class="hit" data-act="slot" data-i="${i}"><rect id="slot-${i}" x="${300 + i * 290}" y="560" width="250" height="250" rx="26" fill="#fff" fill-opacity=".35" stroke="${LN}" stroke-width="2.5" stroke-dasharray="12 10"/><g id="cup-${i}"></g></g>`).join('')}
+  <g class="hit" data-act="trash" id="m-trash"><g class="lift">
+    <path d="M1222 640 L1330 640 L1320 812 L1232 812Z" fill="#9fb7c9" ${L(2.5)}/><rect x="1212" y="624" width="128" height="20" rx="6" fill="#8aa3b6" ${L(2)}/>
+    <path d="M1252 670 L1256 790 M1276 670 L1276 790 M1300 670 L1296 790" ${L(1.5)} opacity=".5"/>
+    ${label(1276, 846, 'Throw away')}
+  </g></g>
+  <g class="hit" data-act="book"><g class="lift">
+    <path d="M1390 800 L1470 790 L1550 800 L1550 860 L1470 852 L1390 860Z" fill="${P.coral}" ${L(2.5)}/><path d="M1470 790 L1470 852" ${L(2)}/>
+    <path d="M1404 810 L1456 804 M1404 824 L1456 818 M1484 804 L1536 810 M1484 818 L1536 824" ${L(1.5)} opacity=".6"/>
+    ${label(1470, 884, 'Recipe book')}
+  </g></g>
+  <g class="hit" data-act="restock"><g class="lift">
+    <rect x="1400" y="664" width="140" height="56" rx="16" fill="#fffaf2" ${L(2.5)}/>${TXT(1470, 690, 'Restock', 16)}${TXT(1470, 709, '+5 each · 15 coins', 12, 'middle', '#8a6a5a', 700)}
+  </g></g>
+  <g id="pipSpot"><svg x="1430" y="430" width="110" height="143" viewBox="0 0 200 260" data-state="idle" overflow="visible">${pip()}</svg></g>`;
+}
+
+/* ---------- Interface ---------- */
+function hud() {
+  const pill = (x, w) => `<rect x="${x}" y="18" width="${w}" height="50" rx="25" fill="#fdf5e8" fill-opacity=".95" stroke="${P.ink}" stroke-width="2.5"/>`;
+  return `
+  <a href="room-view.html"><g class="hit">${pill(18, 190)}${TXT(113, 50, '← Room view', 18)}</g></a>
+  ${pill(222, 220)}<circle cx="252" cy="43" r="14" fill="#ffd27a" stroke="${P.ink}" stroke-width="2"/>${TXT(278, 50, 'Day 3 · 08:42', 18, 'start')}
+  ${pill(1238, 160)}${heart(1268, 42, 1.2)}<text id="happy" x="1290" y="50" font-family="Nunito,sans-serif" font-weight="800" font-size="18" fill="${P.ink}"></text>
+  ${pill(1410, 172)}<circle cx="1440" cy="43" r="14" fill="${P.gold}" stroke="${P.ink}" stroke-width="2"/>${TXT(1440, 49, 'c', 14, 'middle', '#8a6a3c')}<text id="coins" x="1464" y="50" font-family="Nunito,sans-serif" font-weight="800" font-size="18" fill="${P.ink}"></text>
+  <g id="tickets"></g><g id="fx"></g><g id="toast"></g>`;
+}
+
+/* ---------- Dessin d'une tasse selon son contenu ---------- */
+function cupArt(i, c) {
+  const x = 300 + i * 290 + 125, y = 700;
+  if (!c) return '';
+  const has = k => c.includes(k);
+  let liquid = '';
+  if (has('espresso') || has('water') || has('milk')) {
+    const col = has('milk') ? (has('caramel') ? '#c98f5c' : '#c99a6e') : has('water') ? '#6b4028' : '#4a2a1c';
+    liquid = `<ellipse cx="${x}" cy="${y - 40}" rx="78" ry="22" fill="${col}"/>`;
+    if (has('espresso') && !has('milk')) liquid += `<ellipse cx="${x}" cy="${y - 40}" rx="70" ry="18" fill="none" stroke="#a0673e" stroke-width="5" opacity=".8"/>`;
+    if (has('foam')) liquid += `<ellipse cx="${x}" cy="${y - 40}" rx="72" ry="19" fill="#fdf8f0"/><path d="M${x} ${y - 30} C${x - 26} ${y - 44} ${x - 14} ${y - 58} ${x} ${y - 46} C${x + 14} ${y - 58} ${x + 26} ${y - 44} ${x} ${y - 30}Z" fill="#c99a6e"/>`;
+    else if (has('milk')) liquid += `<path d="M${x} ${y - 32} C${x - 22} ${y - 44} ${x - 12} ${y - 54} ${x} ${y - 44} C${x + 12} ${y - 54} ${x + 22} ${y - 44} ${x} ${y - 32}Z" fill="#f4e6d2"/>`;
+    if (has('caramel')) liquid += `<path d="M${x - 56} ${y - 44} l14 8 l14 -10 l14 10 l14 -10 l14 10 l14 -10 l14 8" fill="none" stroke="#d99a3c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  } else if (has('caramel') || has('foam')) {
+    liquid = `<ellipse cx="${x}" cy="${y - 40}" rx="60" ry="16" fill="${has('caramel') ? '#d99a3c' : '#fff'}" opacity=".9"/>`;
+  }
+  const chips = c.map(k => ING[k].name).join(' · ') || 'Empty cup';
+  const steam = c.length ? [0, .8].map(d => `<g style="animation:rise 2.4s ${d}s infinite;transform-origin:${x}px ${y - 70}px"><circle cx="${x - 10 + d * 20}" cy="${y - 70}" r="8" fill="#fff" opacity=".8"/></g>`).join('') : '';
+  return `<g class="pop">
+    <ellipse cx="${x}" cy="${y + 64}" rx="112" ry="26" fill="#fffaf2" ${L(2)}/>
+    <path d="M${x + 84} ${y - 20} Q${x + 130} ${y - 16} ${x + 120} ${y + 18} Q${x + 112} ${y + 40} ${x + 76} ${y + 30}" fill="none" stroke="${LN}" stroke-width="16" stroke-linecap="round"/><path d="M${x + 84} ${y - 20} Q${x + 130} ${y - 16} ${x + 120} ${y + 18} Q${x + 112} ${y + 40} ${x + 76} ${y + 30}" fill="none" stroke="#fffaf2" stroke-width="10" stroke-linecap="round"/>
+    <path d="M${x - 90} ${y - 40} Q${x - 88} ${y + 52} ${x} ${y + 56} Q${x + 88} ${y + 52} ${x + 90} ${y - 40}Z" fill="#fffaf2" ${L(2.5)}/>
+    <ellipse cx="${x}" cy="${y - 40}" rx="90" ry="26" fill="#f1e7da" ${L(2.5)}/>
+    ${liquid}${steam}
+    ${catLogo(x, y + 14, 8)}
+    <rect x="${x - 110}" y="${y + 94}" width="220" height="28" rx="14" fill="#fffaf2" ${L(1.5)}/>${TXT(x, y + 113, chips, 13, 'middle', '#6e5040', 700)}
+  </g>`;
+}
+
+/* ---------- Tickets de commande ---------- */
+function newOrder() {
+  const r = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+  const c = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
+  S.orders.push({ id: S.nextId++, recipe: r, who: c, patience: 100 });
+}
+function ticketArt(o, i) {
+  const x = 520 + i * 200, p = Math.max(0, o.patience);
+  const hearts = Math.ceil(p / 20);
+  const face = `<circle cx="${x + 34}" cy="${150}" r="20" fill="${o.who[2]}" ${L(1.5)}/><path d="M${x + 14} ${148} Q${x + 14} ${126} ${x + 34} ${126} Q${x + 54} ${126} ${x + 54} ${148} Q${x + 44} ${136} ${x + 34} ${140} Q${x + 24} ${136} ${x + 14} ${148}Z" fill="${o.who[1]}"/>
+    <circle cx="${x + 28}" cy="${152}" r="2.2" fill="${P.ink}"/><circle cx="${x + 40}" cy="${152}" r="2.2" fill="${P.ink}"/><path d="M${x + 30} ${160} Q${x + 34} ${163} ${x + 38} ${160}" fill="none" stroke="${P.ink}" stroke-width="1.6"/>`;
+  return `<g class="hit" data-act="serve" data-id="${o.id}" id="t-${o.id}"><g class="lift">
+    <path d="M${x + 80} 84 L${x + 80} 100" ${L(2)}/><circle cx="${x + 80}" cy="98" r="5" fill="#b9bcc4" ${L(1.5)}/>
+    <path d="M${x} 104 L${x + 160} 104 L${x + 160} 250 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 l-10 8 Z" fill="#fffaf2" ${L(2)}/>
+    ${TXT(x + 80, 124, '#' + String(o.id).padStart(2, '0') + ' · ' + o.who[0], 12, 'middle', '#8a6a5a', 700)}
+    ${face}
+    ${TXT(x + 62, 146, o.recipe.name, o.recipe.name.length > 10 ? 13 : 15, 'start')}
+    ${TXT(x + 62, 166, fmt(o.recipe.price) + ' coins', 12, 'start', '#8a6a5a', 700)}
+    <text x="${x + 14}" y="196" font-family="Nunito,sans-serif" font-weight="700" font-size="10.5" fill="#6e5040">${o.recipe.need.map(k => ING[k].name).join(' + ')}</text>
+    ${[0, 1, 2, 3, 4].map(k => `<g id="h-${o.id}-${k}" opacity="${k < hearts ? 1 : .25}">${heart(x + 26 + k * 27, 226, .9)}</g>`).join('')}
+  </g></g>`;
+}
+
+/* ---------- Rendu ---------- */
+const svg = document.getElementById('scene');
+svg.innerHTML = decor() + machines() + front() + hud();
+const $ = id => document.getElementById(id);
+function render() {
+  $('coins').textContent = fmt(S.coins);
+  $('happy').textContent = `${S.happy} / ${S.goal}`;
+  for (const k of ['cups', 'espresso', 'milk', 'caramel']) {
+    $('cnt-' + k).textContent = S.stock[k];
+    const m = $('m-' + (k === 'cups' ? 'cup' : k));
+    m.classList.toggle('off', S.stock[k] <= 0);
+  }
+  $('m-foam').classList.toggle('off', S.stock.milk <= 0);
+  S.cups.forEach((c, i) => { $('slot-' + i).classList.toggle('sel', i === S.sel); });
+  $('tickets').innerHTML = S.orders.map(ticketArt).join('');
+}
+function drawCup(i) { $('cup-' + i).innerHTML = cupArt(i, S.cups[i]); }
+function fx(x, y, text, color = P.ink) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.innerHTML = `<g class="fx" style="transform-box:fill-box">${TXT(x, y, text, 22, 'middle', color)}</g>`;
+  $('fx').appendChild(g); setTimeout(() => g.remove(), 1300);
+}
+function toast(text, good) {
+  $('toast').innerHTML = `<g class="pop"><rect x="560" y="836" width="480" height="46" rx="23" fill="${good ? '#eaf4ec' : '#fbe9e4'}" stroke="${P.ink}" stroke-width="2.5"/>${TXT(800, 866, text, 16)}</g>`;
+  clearTimeout(toast.t); toast.t = setTimeout(() => $('toast').innerHTML = '', 2600);
+}
+const slotX = i => 300 + i * 290 + 125;
+
+/* ---------- Actions ---------- */
+function act(a, el) {
+  if (el.classList.contains('off')) { toast('Out of stock: restock first', false); return; }
+  if (a === 'cup') {
+    const i = S.cups.indexOf(null);
+    if (i < 0) return toast('All three spots are full', false);
+    S.stock.cups--; S.cups[i] = []; S.sel = i; drawCup(i);
+  } else if (a === 'slot') {
+    const i = +el.dataset.i; if (S.cups[i]) S.sel = i;
+  } else if (['espresso', 'water', 'milk', 'foam', 'caramel'].includes(a)) {
+    const c = S.cups[S.sel];
+    if (!c) return toast('Take a cup first', false);
+    if (c.includes(a)) return toast(`${ING[a].name} is already in this cup`, false);
+    if (a === 'foam' && !c.includes('milk')) return toast('Add milk before the foam', false);
+    c.push(a);
+    if (a === 'espresso') S.stock.espresso--;
+    if (a === 'milk' || a === 'foam') S.stock.milk--;
+    if (a === 'caramel') S.stock.caramel--;
+    drawCup(S.sel); fx(slotX(S.sel), 600, '+ ' + ING[a].name, '#6e5040');
+  } else if (a === 'trash') {
+    if (S.sel < 0 || !S.cups[S.sel]) return;
+    S.cups[S.sel] = null; drawCup(S.sel); S.sel = S.cups.findIndex(c => c);
+  } else if (a === 'serve') {
+    const o = S.orders.find(o => o.id === +el.dataset.id), c = S.cups[S.sel];
+    if (!c || !c.length) return toast('Select a filled cup, then click the ticket', false);
+    const ok = o.recipe.need.length === c.length && o.recipe.need.every(k => c.includes(k));
+    if (!ok) { el.classList.add('shake'); setTimeout(() => el.classList.remove('shake'), 700); return toast(`Not quite: this order is a ${o.recipe.name}`, false); }
+    const delighted = o.patience > 55, tip = delighted ? o.recipe.price * .5 : o.recipe.price * .2;
+    S.coins += o.recipe.price + tip; S.happy = Math.min(S.goal, S.happy + 1);
+    fx(520 + S.orders.indexOf(o) * 200 + 80, 280, `+${fmt(o.recipe.price + tip)} coins`, '#8a6a3c');
+    toast(delighted ? `Delighted! ${o.who[0]} loved the ${o.recipe.name}` : `Served! ${o.who[0]} is happy`, true);
+    // Pip emporte la tasse
+    const pipSvg = $('pipSpot').querySelector('svg');
+    pipSvg.dataset.state = 'fly'; $('pipSpot').style.animation = 'flyAway 1.4s ease-in forwards';
+    setTimeout(() => { $('pipSpot').style.animation = ''; pipSvg.dataset.state = 'idle'; }, 1600);
+    S.cups[S.sel] = null; drawCup(S.sel); S.sel = S.cups.findIndex(c => c);
+    S.orders = S.orders.filter(x => x !== o);
+    setTimeout(() => { newOrder(); render(); }, 1800);
+  } else if (a === 'restock') {
+    if (S.coins < 15) return toast('Not enough coins', false);
+    S.coins -= 15; for (const k in S.stock) S.stock[k] += 5; toast('Stock refilled: +5 of everything', true);
+  } else if (a === 'book') { $('book').classList.add('open'); return; }
+  render();
+}
+svg.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (el) act(el.dataset.act, el); });
+
+/* ---------- Livre de recettes ---------- */
+$('known').innerHTML = RECIPES.map(r => `<div class="rec">${r.name}<span>${r.need.map(k => ING[k].name).join(' + ')}</span></div>`).join('');
+$('lockedList').innerHTML = LOCKED.map(([n, d]) => `<div class="rec locked">🔒 ${n}<span>${d}</span></div>`).join('');
+$('closeBook').onclick = () => $('book').classList.remove('open');
+$('book').onclick = e => { if (e.target.id === 'book') $('book').classList.remove('open'); };
+
+/* ---------- Patience (douce : un client lent devient moins ravi, il ne part pas) ---------- */
+newOrder(); newOrder(); newOrder();
+render();
+setInterval(() => {
+  S.orders.forEach(o => {
+    o.patience -= 1.2;
+    const h = Math.ceil(Math.max(0, o.patience) / 20);
+    for (let k = 0; k < 5; k++) { const g = $(`h-${o.id}-${k}`); if (g) g.setAttribute('opacity', k < h ? 1 : .25); }
+  });
+}, 1000);
+</script>
+</body>
+</html>

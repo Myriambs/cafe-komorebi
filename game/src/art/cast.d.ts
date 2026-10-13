@@ -1,0 +1,20 @@
+// Types du module de dessin des personnages (cast.js renvoie des chaînes SVG)
+type Draw = () => string;
+export const P: Record<string, string>;
+export const O: string;
+export function limb(d: string, color: string, width: number): string;
+export function shadow(rx?: number, cx?: number): string;
+export function sparkle(x: number, y: number, s: number, c?: string): string;
+export function leaf(x: number, y: number, s: number, c: string): string;
+export function gear(cx: number, cy: number, r: number, c: string): string;
+export function eyes(y: number, gap: number, iris: string, rx?: number, ry?: number): string;
+export function heart(x: number, y: number, s?: number): string;
+export function catLogo(x: number, y: number, s: number, c?: string): string;
+export function hero(g: 'm' | 'f'): string;
+export const moka: Draw, biscuit: Draw, grandma: Draw, pip: Draw, kettle: Draw, mice: Draw;
+export const captain: Draw, dusty: Draw, bubbles: Draw, nibbles: Draw;
+export function crumbMouse(kind: 'captain' | 'dusty' | 'bubbles' | 'nibbles'): string;
+export function mouse(x: number, kind: string): string;
+export function customer(g: 'm' | 'f', v?: number): string;
+export function custLegs(g: 'm' | 'f', v?: number): string;
+export function takeaway(x: number, y: number): string;

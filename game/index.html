@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Café Komorebi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=Nunito:wght@400;600;700;800&family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<!-- filtres « pixel art » : on échantillonne une grille et on agrandit chaque point en bloc carré -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="pix" x="0" y="0" width="100%" height="100%" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+    <feMorphology in="SourceGraphic" operator="erode" radius="1.2" result="thick"/>
+    <feFlood x="2" y="2" width="1" height="1" flood-color="#000"/>
+    <feComposite width="5" height="5"/>
+    <feTile result="grid"/>
+    <feComposite in="thick" in2="grid" operator="in"/>
+    <feMorphology operator="dilate" radius="2"/>
+  </filter>
+  <filter id="pixS" x="0" y="0" width="100%" height="100%" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+    <feMorphology in="SourceGraphic" operator="erode" radius=".9" result="thick"/>
+    <feFlood x="2" y="2" width="1" height="1" flood-color="#000"/>
+    <feComposite width="5" height="5"/>
+    <feTile result="grid"/>
+    <feComposite in="thick" in2="grid" operator="in"/>
+    <feMorphology operator="dilate" radius="2"/>
+  </filter>
+</svg>
+<div id="app">
+  <div id="world"></div>
+  <div id="ui"></div>
+  <div id="wipe"></div>
+  <button id="musicBtn" title="Music on / off">♪</button>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

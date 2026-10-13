@@ -1,0 +1,155 @@
+/* Café Komorebi — animations et états partagés des personnages */
+  svg * { transform-box: view-box; }
+  @keyframes bob { 50% { transform: translateY(-3px); } }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
+  @keyframes sway { 50% { transform: rotate(9deg); } }
+  @keyframes wag { 50% { transform: rotate(-14deg); } }
+  @keyframes twitch { 0%, 88%, 100% { transform: rotate(0); } 92% { transform: rotate(-12deg); } }
+  @keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 75% { transform: translateY(-10px); } }
+  @keyframes flapL { 50% { transform: rotate(38deg); } }
+  @keyframes flapR { 50% { transform: rotate(-38deg); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes rise { 0% { transform: translate(0, 0) scale(.5); opacity: 0; } 25% { opacity: .9; } 100% { transform: translate(8px, -42px) scale(1.4); opacity: 0; } }
+  @keyframes zz { 0% { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(14px, -40px); opacity: 0; } }
+  @keyframes shine { 0%, 70%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 82% { opacity: 1; transform: scale(1) rotate(45deg); } }
+  @keyframes mote { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: .7; } 100% { transform: translateY(-50px); opacity: 0; } }
+  @keyframes wave { from { transform: rotate(-6deg); } to { transform: rotate(16deg); } }
+  @keyframes sweep { 50% { transform: rotate(-22deg); } }
+  @keyframes wipe { 50% { transform: translateX(-10px); } }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  @keyframes burst { 0% { transform: scale(.2); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+  @keyframes glowp { 50% { opacity: .35; } }
+  @keyframes tool { 50% { transform: rotate(-28deg); } }
+  @keyframes snot { 0%, 100% { transform: scale(.35); } 50% { transform: scale(1); } }
+  @keyframes pet { 50% { transform: translate(-9px, 5px); } }
+  @keyframes stepA { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(-14deg); } }
+  @keyframes stepB { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+  @keyframes dustL { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { opacity: .9; } 100% { transform: translate(-18px, -16px) scale(1.7); opacity: 0; } }
+  @keyframes dustR { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { opacity: .9; } 100% { transform: translate(16px, -20px) scale(1.6); opacity: 0; } }
+
+  .bob { animation: bob 2.6s ease-in-out infinite; }
+  .fast .bob { animation-duration: .5s; }
+  .slow .bob { animation-duration: 4s; }
+  .blink { animation: blink 4.6s infinite; }
+  .wing-l, .wing-r { animation: none; }
+  .zz, .burst, .uni-pop .pop { opacity: 0; }
+
+  /* états : chaque fiche porte data-state sur son <svg> */
+  [data-state] .only { display: none; }
+  [data-state="city"] .o-city, [data-state="espresso"] .o-uniform, [data-state="noir"] .o-uniform, [data-state="transform"] .o-uniform,
+  [data-state="idle"] .o-idle, [data-state="guide"] .o-guide, [data-state="patrol"] .o-patrol, [data-state="sleep"] .o-sleep,
+  [data-state="tea"] .o-tea, [data-state="tinker"] .o-tinker, [data-state="fly"] .o-fly, [data-state="serve"] .o-serve,
+  [data-state="clean"] .o-clean, [data-state="patrol"] .o-awake, [data-state="idle"] .o-awake { display: inline; }
+  [data-state="transform"] .burst { animation: burst 1.1s ease-out; }
+  [data-state="transform"] .pop { animation: pop .45s cubic-bezier(.3, 1.6, .5, 1) both; }
+  [data-state="transform"] .pop.d1 { animation-delay: .35s; }
+  [data-state="transform"] .pop.d2 { animation-delay: .6s; }
+  [data-state="transform"] .pop.d3 { animation-delay: .85s; }
+  [data-state="transform"] .pop.d4 { animation-delay: 1.1s; }
+  [data-state="sleep"] .zz { animation: zz 2.4s infinite; }
+  [data-state="sleep"] .zz.b { animation-delay: .8s; }
+  [data-state="sleep"] .zz.c { animation-delay: 1.6s; }
+  svg { --shirt: #f6e7cf; --collar: #fffaf2; --apron: #74513f; --apronD: #654534; --cap: #74513f; --brim: #654534; --pants: #5a4a50; }
+  svg[data-state="noir"] { --shirt: #4a4452; --collar: #3d3845; --apron: #36313d; --apronD: #2d2933; --cap: #36313d; --brim: #2d2933; --pants: #36313d; }
+  .namefield { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+  .namefield input { font: 700 14px Nunito, sans-serif; width: 120px; padding: 6px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; color: var(--ink); text-transform: uppercase; }
+  @media (prefers-reduced-motion: reduce) { svg * { animation: none !important; } }
+
+  [data-state="idle"] .tailw { animation: wag .5s ease-in-out infinite; }
+  [data-state="patrol"] .tailw { animation: wag 1.2s ease-in-out infinite; }
+  [data-state="patrol"] .bob { animation-duration: .55s; }
+  [data-state="sleep"] .bob { animation-duration: 4.5s; }
+  [data-state="idle"] .pipbody { animation: hop 1.8s ease-in-out infinite; }
+  [data-state="fly"] .pipbody { animation: bob .5s ease-in-out infinite; transform: translateY(-14px); }
+  [data-state="fly"] .wing-l { animation: flapL .22s ease-in-out infinite; }
+  [data-state="fly"] .wing-r { animation: flapR .22s ease-in-out infinite; }
+  [data-state="clean"] .tool { animation: sweep .5s ease-in-out infinite; }
+  [data-state="clean"] .tool2 { animation: wipe .45s ease-in-out infinite; }
+  [data-state="guide"] .bob { animation-duration: 1.2s; }
+  [data-state="idle"] .o-awake, [data-state="guide"] .o-awake, [data-state="idle"] .o-rest, [data-state="sleep"] .o-rest, [data-state="cuddle"] .o-rest,
+  [data-state="cuddle"] .o-cuddle, [data-state="stray"] .o-stray, [data-state="stray"] .o-sad, [data-state="idle"] .o-home, [data-state="patrol"] .o-home, [data-state="sleep"] .o-home,
+  [data-state="idle"] .o-happy, [data-state="patrol"] .o-happy, [data-state="coffee"] .o-happy, [data-state="walk"] .o-walk, [data-state="wait"] .o-wait, [data-state="coffee"] .o-coffee,
+  [data-state="walk"] .o-tired, [data-state="wait"] .o-tired { display: inline; }
+  [data-state="idle"] .mtail { animation: sway 1.4s ease-in-out infinite; }
+  [data-state="cuddle"] .mtail { animation: sway .7s ease-in-out infinite; }
+  [data-state="sleep"] .mhead { transform: rotate(6deg) translateY(5px); }
+  [data-state="cuddle"] .mhead { transform: rotate(-8deg); }
+  [data-state="stray"] .ear-l { transform: rotate(-40deg); }
+  [data-state="stray"] .ear-r { transform: rotate(40deg); }
+  [data-state="stray"] .bob { animation-duration: 3.5s; }
+  [data-state="walk"] .legL { animation: stepA .62s ease-in-out infinite; }
+  [data-state="walk"] .legR { animation: stepB .62s ease-in-out infinite; }
+  [data-state="walk"] .armL { animation: stepB .62s ease-in-out infinite; }
+  [data-state="walk"] .armR { animation: stepA .62s ease-in-out infinite; }
+  [data-state="walk"] .bob { animation-duration: .31s; }
+  [data-state="clean"] .mouse { animation-duration: .45s !important; }
+
+  /* Biscuit : chien perdu → mange → nommé → adopté */
+  [data-state="stray"] .o-taildown, [data-state="stray"] .o-rope, [data-state="stray"] .o-fray, [data-state="stray"] .o-dirt, [data-state="stray"] .o-leaf, [data-state="stray"] .o-sad, [data-state="stray"] .o-frown,
+  [data-state="eat"] .o-tailup, [data-state="eat"] .o-rope, [data-state="eat"] .o-fray, [data-state="eat"] .o-dirt, [data-state="eat"] .o-happy, [data-state="eat"] .o-smile, [data-state="eat"] .o-tongue,
+  [data-state="named"] .o-tailup, [data-state="named"] .o-rope, [data-state="named"] .o-tag, [data-state="named"] .o-dirt, [data-state="named"] .o-happy, [data-state="named"] .o-smile, [data-state="named"] .o-tongue,
+  [data-state="straysleep"] .o-tailup, [data-state="straysleep"] .o-rope, [data-state="straysleep"] .o-tag, [data-state="straysleep"] .o-sleep, [data-state="straysleep"] .o-smile,
+  [data-state="idle"] .o-tailup, [data-state="idle"] .o-bandana, [data-state="idle"] .o-smile, [data-state="idle"] .o-tongue,
+  [data-state="patrol"] .o-tailup, [data-state="patrol"] .o-bandana, [data-state="patrol"] .o-smile,
+  [data-state="sleep"] .o-tailup, [data-state="sleep"] .o-bandana, [data-state="sleep"] .o-smile { display: inline; }
+  [data-state="eat"] .tailw, [data-state="named"] .tailw { animation: wag .35s ease-in-out infinite; }
+  [data-state="eat"] .bob { animation-duration: .6s; }
+  [data-state="straysleep"] .zz { animation: zz 2.4s infinite; }
+  [data-state="straysleep"] .zz.b { animation-delay: .8s; }
+  [data-state="straysleep"] .zz.c { animation-delay: 1.6s; }
+  [data-state="straysleep"] .bob { animation-duration: 4.5s; }
+
+  /* Moka : concierge assis / marche de profil / sieste casquette sur les yeux */
+  .mwalk { display: none; }
+  [data-state="walk"] .mwalk { display: inline; }
+  [data-state="walk"] .mseat { display: none; }
+  [data-state="walk"] .bob { animation-duration: .36s; }
+  [data-state="walk"] .legA { animation: stepA .5s ease-in-out infinite; }
+  [data-state="walk"] .legB { animation: stepB .5s ease-in-out infinite; }
+  [data-state="walk"] .wtail { animation: sway .9s ease-in-out infinite; }
+  [data-state="walk"] .whead { animation: bob .5s ease-in-out infinite; }
+  [data-state="sleep"] .mcap { transform: translate(0, 16px) rotate(-8deg); transition: transform .6s; }
+  .nocostume .costume { display: none; }
+
+  /* clin d'œil du héros */
+  .winkEye { display: none; }
+  .wink .winkEye { display: inline; }
+
+  /* Grand-mère qui lit et fredonne */
+  [data-state="read"] .o-read { display: inline; }
+  [data-state="read"] .bob { animation-duration: 5s; }
+
+  /* héros qui marche en tenue de ville */
+  [data-state="citywalk"] .o-city { display: inline; }
+  [data-state="citywalk"] .hlegL { animation: stepA .55s ease-in-out infinite; }
+  [data-state="citywalk"] .hlegR { animation: stepB .55s ease-in-out infinite; }
+  [data-state="citywalk"] .bob { animation-duration: .28s; }
+  /* Biscuit qui marche (profil) */
+  .dwalk { display: none; }
+  [data-state="walk"] .dwalk { display: inline; }
+  [data-state="walk"] .dseat { display: none; }
+  /* Grand-mère assise : jupe debout cachée */
+  [data-state="read"] .gstand { display: none; }
+  /* clients assis : pas de jambes debout (les jambes pliées sont dessinées à part) */
+  [data-state="sit"] .legL, [data-state="sit"] .legR, [data-state="sitcoffee"] .legL, [data-state="sitcoffee"] .legR { display: none; }
+  [data-state="sit"] .o-wait, [data-state="sit"] .o-tired, [data-state="sitcoffee"] .o-coffee, [data-state="sitcoffee"] .o-happy { display: inline; }
+
+  /* Moka : marche de face (vers nous) et de dos (elle s'éloigne) */
+  .mback { display: none; }
+  [data-state="walkback"] .mback { display: inline; }
+  [data-state="walkback"] .mseat { display: none; }
+  [data-state="walkback"] .bob, [data-state="walkfront"] .bob { animation-duration: .3s; }
+  [data-state="walkback"] .legA { animation: pawUp .5s ease-in-out infinite; }
+  [data-state="walkback"] .legB { animation: pawUp .5s .25s ease-in-out infinite; }
+  [data-state="walkfront"] .o-awake, [data-state="walkfront"] .o-rest { display: inline; }
+  [data-state="walkfront"] .pawL { animation: pawUp .5s ease-in-out infinite; }
+  [data-state="walkfront"] .pawR { animation: pawUp .5s .25s ease-in-out infinite; }
+  [data-state="walkfront"] .mtail { animation: sway .7s ease-in-out infinite; }
+  @keyframes pawUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+  /* Biscuit mange la tête dans la gamelle (profil), la queue qui remue */
+  [data-state="eatdown"] .dwalk { display: inline; }
+  [data-state="eatdown"] .dseat { display: none; }
+  [data-state="eatdown"] .whead { animation: dip .55s ease-in-out infinite; }
+  [data-state="eatdown"] .wtail { animation: wag .28s ease-in-out infinite; }
+  @keyframes dip { 0%, 100% { transform: translate(6px, 30px) rotate(32deg); } 50% { transform: translate(7px, 35px) rotate(37deg); } }
