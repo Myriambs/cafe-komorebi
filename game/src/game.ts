@@ -53,7 +53,12 @@ export async function run() {
     const saved = load();
     const choice = await titleScreen(!!saved);
     if (choice === 'continue' && saved) S = saved;
-    else { const p = await heroSelect(); S = newSave(p.hero, p.name, p.uniform); persist(); }
+    else {
+      const p = await heroSelect(); S = newSave(p.hero, p.name, p.uniform);
+      // commencer directement au niveau 2 ou 3 : Biscuit fait déjà partie de l'équipe
+      if (p.level > 1) { S.level = p.level; S.phase = 'morning'; S.nightsFed = 2; }
+      persist();
+    }
     if (S.level === 1) await playLevel1();
     if (S.level === 2) await playLevel2();
     if (S.level === 3) await playLevel3();

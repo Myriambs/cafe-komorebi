@@ -253,3 +253,6 @@ body.pixel .art .artText { display: none; }
 .rp-pet svg { width: 100%; height: 100%; }
 .rp-next { font-weight: 800; color: var(--ink) !important; margin-top: 14px !important; }
 @media (max-width: 760px) { .rp-grid { grid-template-columns: 1fr; } }
+/* écran « Who are you? » : tient sur les petits écrans (choix du niveau en plus) */
+.title .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
+@media (max-height: 860px) { .pick svg { height: 140px; } #uniPrev > div { width: 84px !important; } .title .heroes { margin: 10px 0; } }
