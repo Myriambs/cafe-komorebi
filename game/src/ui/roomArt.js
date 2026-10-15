@@ -13,7 +13,7 @@ function ch(fn, state, x, y, w, modes, wide = false) {
 }
 
 /* ---------- Murs, sol à chevrons, grandes vitres, porte en arc ---------- */
-function shell() {
+function shell(bakeryOpen = false) {
   return `
   <defs>
     <pattern id="herring" width="72" height="36" patternUnits="userSpaceOnUse">
@@ -74,7 +74,7 @@ function shell() {
   ${souvenirPhoto()}
   ${library()}
 
-  <!-- porte de la boulangerie (bientôt) sur le mur de gauche -->
+  <!-- porte de la boulangerie sur le mur de gauche : « bientôt » jusqu'au niveau 4, puis ouverte avec une petite pancarte -->
   <g class="hit" data-act="bakery"><g class="lift">
     <path d="M44 214 L150 160 L150 378 L44 540Z" fill="#a8743f" ${L(2.5)}/>
     <path d="M58 228 L138 186 L138 372 L58 512Z" fill="#c9915e" ${L(1.8)}/>
@@ -87,7 +87,8 @@ function shell() {
       <text x="0" y="8" text-anchor="middle" font-family="Fraunces,serif" font-weight="700" font-style="italic" font-size="21" fill="#6e4a3e">Bakery</text>
       <path d="M-62 0 q-8 -6 -2 -12 M62 0 q8 -6 2 -12" fill="none" stroke="${P.gold}" stroke-width="2.5" stroke-linecap="round"/>
     </g>
-    ${soonRibbon(98, 296, -27, 'COMING SOON', 100, 12)}
+    ${bakeryOpen ? `<g transform="translate(98 300) skewY(-27)"><path d="M-22 -30 L0 -44 L22 -30" fill="none" stroke="#8a6a50" stroke-width="1.6"/><rect x="-34" y="-30" width="68" height="30" rx="6" fill="#fdf1dd" ${L(1.8)}/><text x="0" y="-9" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-weight="700" font-size="15" fill="#4f8a6a">Open ♡</text></g>
+      <g transform="translate(98 420) skewY(-27)"><path d="M-14 0 q14 -16 28 0" fill="none" stroke="#fffaf2" stroke-width="3" opacity=".7" stroke-linecap="round" style="animation:steam 2.4s infinite"/></g>` : soonRibbon(98, 296, -27, 'COMING SOON', 100, 12)}
   </g></g>`;
 }
 

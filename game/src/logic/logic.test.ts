@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { matches, cannotAdd, recipeById } from './recipes';
 import { tickPatience, outcome, payment, hearts } from './service';
-import { dogJoins, planFor, LEVEL2_DAY, LEVEL3_DAY } from './level1';
+import { dogJoins, planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY } from './level1';
+import { TEAS, SWEETS, tempFor, cannotPour, cannotAddExtra, identify, steepResult, steepAfter, knifeAt, goodSlice, JUST_RIGHT } from './tea';
+import { HOME_RECIPES } from './homeRecipes';
+import { PASTRIES, pastryById, cannotAddDough, doughReady, bakeResult, heatAfter, GOLDEN } from './bakery';
 import { messFor, canClean, JOB } from './crumbs';
 import { validate, newSave, cleanName, cleanPetName } from './save';
 import { OUTFITS, outfitOf } from './outfits';
@@ -112,5 +115,67 @@ describe('level 3 · the Crumb Crew', () => {
     expect(s.level).toBe(3); expect(s.outfits.dusty).toBe('lavender'); expect(s.outfits.nibbles).toBe('sunflower');
     expect(s.owned).toEqual(['dusty:lavender']);
     expect(OUTFITS.captain.length).toBeGreaterThan(1);
+  });
+});
+
+describe('level 4 · the bakery', () => {
+  it('every pastry has a recipe card and a menu entry', () => {
+    for (const p of PASTRIES) { const r = recipeById(p.id); expect(r.kind).toBe('pastry'); expect(r.need).toEqual([...p.dough, p.topping]); }
+    for (const id of LEVEL4_DAY.recipes) expect(() => recipeById(id)).not.toThrow();
+    expect(LEVEL4_DAY.recipes.some(id => recipeById(id).kind === 'pastry')).toBe(true);
+  });
+  it('only takes the dough from the card, once each', () => {
+    const c = pastryById('croissant');
+    expect(cannotAddDough([], 'flour', c)).toBeNull();
+    expect(cannotAddDough(['flour'], 'flour', c)).toMatch(/already/);
+    expect(cannotAddDough([], 'egg', c)).toMatch(/Flour \+ Butter/);
+    expect(doughReady(['butter', 'flour'], c)).toBe(true);
+    expect(doughReady(['flour'], c)).toBe(false);
+  });
+  it('bakes from pale to golden to burnt', () => {
+    const c = pastryById('croissant');
+    expect(bakeResult(0)).toBe('pale');
+    const golden = heatAfter(0, c.bake * (GOLDEN.from + GOLDEN.to) / 2, c);
+    expect(bakeResult(golden)).toBe('golden');
+    expect(bakeResult(heatAfter(golden, c.bake, c))).toBe('burnt');
+    expect(heatAfter(0.9, 100, c)).toBe(1);
+  });
+  it('every pastry has a real home recipe', () => {
+    for (const p of PASTRIES) { const h = HOME_RECIPES[p.id]; expect(h.steps.length).toBeGreaterThan(4); expect(h.groups.flatMap(g => g.items).length).toBeGreaterThan(4); }
+  });
+  it('saves level 4', () => {
+    expect(validate({ ...newSave('f', 'Hana', 'espresso'), level: 4 })!.level).toBe(4);
+  });
+});
+
+describe('level 5 · tea & cakes', () => {
+  it('every tea and sweet is on the menu', () => {
+    for (const x of [...TEAS, ...SWEETS]) expect(recipeById(x.id).kind).toBe('tea');
+    for (const id of LEVEL5_DAY.recipes) expect(() => recipeById(id)).not.toThrow();
+  });
+  it('green tea at 80°C, Tunisian mint tea and the rest at 100°C', () => {
+    expect(tempFor('green', null)).toBe(80); expect(tempFor('green', 'mint')).toBe(100); expect(tempFor('black', 'cardamom')).toBe(100);
+    expect(cannotPour('green', null, 100)).toMatch(/80°C/); expect(cannotPour('green', 'mint', 80)).toMatch(/mint/); expect(cannotPour('chamomile', null, 100)).toBeNull();
+  });
+  it('steeps from weak to just right to bitter', () => {
+    expect(steepResult(0)).toBe('weak');
+    expect(steepResult(steepAfter(0, 7 * (JUST_RIGHT.from + JUST_RIGHT.to) / 2, 'green'))).toBe('right');
+    expect(steepResult(steepAfter(0, 99, 'black'))).toBe('bitter');
+  });
+  it('recognises each order from the tray', () => {
+    expect(identify({ kind: 'tea', base: 'green', herb: 'mint', extras: ['pine'] })).toBe('mintTea');
+    expect(identify({ kind: 'tea', base: 'green', herb: 'mint', extras: [] })).toBeNull();
+    expect(identify({ kind: 'tea', base: 'black', herb: 'cardamom', extras: ['milk'] })).toBe('karak');
+    expect(identify({ kind: 'sweet', id: 'cookies', extras: [] })).toBeNull();
+    expect(identify({ kind: 'sweet', id: 'cookies', extras: ['icing'] })).toBe('cookies');
+    expect(identify({ kind: 'sweet', id: 'lemonCake', extras: [] })).toBe('lemonCake');
+  });
+  it('icing only on cookies, tea extras only in tea', () => {
+    expect(cannotAddExtra({ kind: 'tea', base: 'black', herb: null, extras: [] }, 'icing')).toMatch(/cookies/);
+    expect(cannotAddExtra({ kind: 'sweet', id: 'chocCake', extras: [] }, 'honey')).toMatch(/tea/);
+    expect(cannotAddExtra({ kind: 'tea', base: 'chamomile', herb: null, extras: ['honey'] }, 'honey')).toMatch(/already/);
+  });
+  it('the cake knife swings back and forth', () => {
+    expect(knifeAt(0)).toBe(0); expect(knifeAt(1.2)).toBeCloseTo(1); expect(goodSlice(knifeAt(0.6))).toBe(true); expect(goodSlice(0.1)).toBe(false);
   });
 });

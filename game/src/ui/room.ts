@@ -7,6 +7,8 @@ import { DRAW, h, ui } from './dom';
 import { Stage, type Actor } from './actors';
 import { recipeById, type Recipe } from '../logic/recipes';
 import { pickBooks, readingQuote, type Book } from '../logic/books';
+import { pastryArt } from './bakeryStation';
+import { teaItemArt } from './teaStation';
 import type { DoorKind } from './roomArt.js';
 import { tickPatience, hearts, outcome, payment, type Outcome } from '../logic/service';
 import { music } from '../audio/music';
@@ -48,6 +50,10 @@ export interface RoomOpts {
   juiceOpen?: boolean;
   /** La porte secrète de la Crumb Crew (bas du mur de droite) : cachée jusqu'au niveau 3, puis entrouverte, ouverte, et enfin la petite porte peinte. */
   mouseHole?: DoorKind;
+  /** Niveau 4 : la boulangerie est ouverte. */
+  bakeryOpen?: boolean;
+  /** Niveau 5 : le salon de thé est ouvert. */
+  teaOpen?: boolean;
 }
 
 export class Room {
@@ -57,6 +63,7 @@ export class Room {
   coins: number;
   spawning: boolean;
   private nextId = 1;
+  private ordersSeen = new Set<string>();
   private cooldown = 1.5;
   private timer: number;
   private chatTimer: number;
@@ -73,6 +80,8 @@ export class Room {
   onCard?: (who: Who) => void;
   onMusic?: () => void;
   onJuice?: () => void;
+  onBakery?: () => void;
+  onTea?: () => void;
   /** Statistiques du niveau : boisson servie, livre prêté, pourboire. */
   onDrink?: (r: Recipe, o: Outcome) => void;
   onBook?: (c: Cust) => void;
@@ -83,7 +92,7 @@ export class Room {
     this.spawning = o.customers;
     const ov = o.outfitVars ?? {};
     this.el = h(`<div class="screen room" data-mode="${o.mode}"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet"><g class="art">
-      ${shell()}${mouseHole(o.mouseHole ?? 'hidden')}${lamps()}${backWall()}${stationArt(o.juiceOpen)}
+      ${shell(o.bakeryOpen)}${mouseHole(o.mouseHole ?? 'hidden')}${lamps()}${backWall()}${stationArt(o.juiceOpen)}
       <g transform="translate(820 400) scale(.88) translate(-820 -400)">${sofaBack()}
       ${o.grandma !== true && o.grandma !== undefined ? '' : `<g class="hit" data-act="card" data-who="grandma"><g transform="rotate(-5 820 380)"><svg id="grandmaSvg" x="745" y="200" width="150" height="195" viewBox="0 0 200 260" data-state="read" style="${ov.grandma ?? ''}" overflow="visible">${grandma()}</svg></g></g>`}
       ${sofaFront()}${o.grandma !== true && o.grandma !== undefined ? grandmaLap(false) : `<g class="hit" data-act="card" data-who="grandma">${grandmaLap()}</g>`}</g>${recordPlayer()}
@@ -137,10 +146,14 @@ export class Room {
       ${this.o.customers ? `${pill(282, 190)}${heart(312, 42, 1.2)}${t(334, `${this.served} / ${this.o.goal} happy`)}` : ''}
       ${pill(1400, 182)}<circle cx="1430" cy="43" r="14" fill="${P.gold}" stroke="${P.ink}" stroke-width="2"/><text x="1430" y="49" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="14" fill="#8a6a3c">c</text>${t(1456, (Math.round(this.coins * 100) / 100).toString())}
       ${this.o.customers ? `<g class="hit" data-act="station"><g class="lift"><rect x="1330" y="808" width="250" height="64" rx="32" fill="${P.ink}"/><text x="1455" y="848" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="20" fill="#fdf5e8">☕ Café station${this.coffeeOrders() ? ` (${this.coffeeOrders()})` : ''}</text></g></g>` : ''}
-      ${this.o.customers && this.o.juiceOpen ? `<g class="hit" data-act="juice"><g class="lift"><rect x="1064" y="808" width="250" height="64" rx="32" fill="#e8823a" stroke="${P.ink}" stroke-width="2.5"/><text x="1189" y="848" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="20" fill="#fffaf2">🍊 Juice bar${this.juiceOrders() ? ` (${this.juiceOrders()})` : ''}</text></g></g>` : ''}`;
+      ${this.o.customers && this.o.juiceOpen ? `<g class="hit" data-act="juice"><g class="lift"><rect x="1064" y="808" width="250" height="64" rx="32" fill="#e8823a" stroke="${P.ink}" stroke-width="2.5"/><text x="1189" y="848" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="20" fill="#fffaf2">🍊 Juice bar${this.juiceOrders() ? ` (${this.juiceOrders()})` : ''}</text></g></g>` : ''}
+      ${this.o.customers && this.o.bakeryOpen ? `<g class="hit" data-act="bakery"><g class="lift"><rect x="798" y="808" width="250" height="64" rx="32" fill="#c47a2c" stroke="${P.ink}" stroke-width="2.5"/><text x="923" y="848" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="20" fill="#fffaf2">🥐 Bakery${this.pastryOrders() ? ` (${this.pastryOrders()})` : ''}</text></g></g>` : ''}
+      ${this.o.customers && this.o.teaOpen ? `<g class="hit" data-act="tea"><g class="lift"><rect x="532" y="808" width="250" height="64" rx="32" fill="#6f957d" stroke="${P.ink}" stroke-width="2.5"/><text x="657" y="848" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="20" fill="#fffaf2">🍵 Tea room${this.teaOrders() ? ` (${this.teaOrders()})` : ''}</text></g></g>` : ''}`;
   }
   private juiceOrders() { return this.ordered().filter(c => c.recipe?.kind === 'juice').length; }
-  private coffeeOrders() { return this.ordered().filter(c => c.recipe?.kind !== 'juice').length; }
+  private coffeeOrders() { return this.ordered().filter(c => !c.recipe?.kind).length; }
+  private teaOrders() { return this.ordered().filter(c => c.recipe?.kind === 'tea').length; }
+  private pastryOrders() { return this.ordered().filter(c => c.recipe?.kind === 'pastry').length; }
 
 
   /** Bulle de Grand-mère (consigne du tutoriel), depuis son canapé. */
@@ -284,7 +297,9 @@ export class Room {
       const r = c.recipe!, rem = c.qty - c.servedCups, name = (rem > 1 ? `${rem} × ` : '') + r.name;
       const JUICE: Record<string, string> = { orange: '#f5a83a', apple: '#b8d86a', lemon: '#f6e27a', berry: '#d9577a' };
       const fruit = r.need.find(k => k in JUICE);
-      const icon = r.kind === 'juice'
+      const icon = r.kind === 'tea' ? teaItemArt(r.id, x + 30, y + 34, .48)
+        : r.kind === 'pastry' ? pastryArt(r.id, x + 30, y + 34, .45)
+        : r.kind === 'juice'
         ? `<path d="M${x + 16} ${y + 14} h22 l-3 30 h-16z" fill="#eef7fa" stroke="${P.ink}" stroke-width="2"/><path d="M${x + 18} ${y + 22} h18 l-2 20 h-14z" fill="${JUICE[fruit ?? 'orange']}"/><path d="M${x + 33} ${y + 8} l-4 14" stroke="#e86a5f" stroke-width="2.5" stroke-linecap="round"/>`
         : `<path d="M${x + 16} ${y + 18} h24 l-3 22 h-18z" fill="${r.need.includes('chocolate') ? '#8a5234' : r.need.includes('milk') ? '#c99a6e' : '#5a3424'}" stroke="${P.ink}" stroke-width="2"/><path d="M${x + 40} ${y + 22} q7 2 2 11" fill="none" stroke="${P.ink}" stroke-width="2"/>`;
       g.innerHTML = `${shape}${icon}
@@ -338,8 +353,13 @@ export class Room {
   }
 
   takeOrder(c: Cust) {
-    const ids = this.o.recipes;
-    c.recipe = recipeById(ids[Math.floor(Math.random() * ids.length)]);
+    // on fait le tour du menu avant de répéter : chaque journée montre des recettes variées
+    const all = [...new Set(this.o.recipes)];
+    let ids = all.filter(id => !this.ordersSeen.has(id));
+    if (!ids.length) { this.ordersSeen.clear(); ids = all; }
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    this.ordersSeen.add(id);
+    c.recipe = recipeById(id);
     c.state = 'ordered';
     const t = SPOTS[c.table];
     this.fx(t.cx, t.cy - 320, 'Order taken!', '#6e5040');
@@ -400,7 +420,11 @@ export class Room {
     const b = c.books![k], s = p.s * 1.3, delay = (-(k * 2.3 + c.id * 1.1) % 9).toFixed(2);
     const x = p.x, y = p.y - 46 * p.s, skin = '#f1cfb4';
     const juice = c.recipe?.kind === 'juice';
-    const cup = juice
+    const cup = c.recipe?.kind === 'tea'
+      ? teaItemArt(c.recipe.id, 32, 8, .26)
+      : c.recipe?.kind === 'pastry'
+      ? `<ellipse cx="32" cy="12" rx="11" ry="3" fill="#fffaf2" ${L(1.3)}/>${pastryArt(c.recipe.id, 32, 7, .24)}`
+      : juice
       ? `<path d="M26 -4 L38 -4 L36 14 L28 14Z" fill="#eef7fa" ${L(1.5)}/><path d="M27 2 L37 2 L35.6 13 L28.4 13Z" fill="#f5a83a"/><path d="M34 -10 L32 2" stroke="#e86a5f" stroke-width="2" stroke-linecap="round"/>`
       : `<path d="M25 -1 L39 -1 L37 13 L27 13Z" fill="#fffaf2" ${L(1.5)}/><path d="M39 2 q5 1 2 7" fill="none" ${L(1.5)}/><ellipse cx="32" cy="0" rx="6.4" ry="1.6" fill="#a8743f"/>`;
     const hand = (hx: number, hy: number) => `<circle cx="${hx}" cy="${hy}" r="5.2" fill="${skin}" ${L(1.5)}/>`;
@@ -460,7 +484,8 @@ export class Room {
     }
     else if (a === 'station') { if (this.o.customers) this.onStation?.(); }
     else if (a === 'juice') { if (this.o.juiceOpen) { if (this.o.customers) this.onJuice?.(); } else this.toast('The juice bar opens in Level 2 🍊'); }
-    else if (a === 'bakery') this.toast('The bakery opens in Level 4 🥐');
+    else if (a === 'bakery') { if (this.o.bakeryOpen) { if (this.o.customers) this.onBakery?.(); else this.toast('The bakery is warm and ready 🥐'); } else this.toast('The bakery opens in Level 4 🥐'); }
+    else if (a === 'tea') { if (this.o.teaOpen && this.o.customers) this.onTea?.(); }
     else if (a === 'music') this.onMusic?.();
     else if (a === 'card') this.onCard?.(el.dataset.who as Who);
   }

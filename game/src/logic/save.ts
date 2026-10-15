@@ -80,7 +80,7 @@ export function validate(raw: unknown): SaveData | null {
     totalServed: int(r.totalServed, 0, 1e5, 0),
     nightsFed: int(r.nightsFed, 0, 3, 0),
     seenTransform: r.seenTransform === true,
-    level: int(r.level, 1, 3, 1),
+    level: int(r.level, 1, 5, 1),
     stats: cleanStats(r.stats)
   };
 }

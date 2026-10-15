@@ -26,3 +26,9 @@ export const LEVEL2_DAY: DayPlan = { day: 1, goal: 3, recipes: ['orangeJuice', '
 
 /** Niveau 3 : jour de rush, café ET jus pour des groupes de deux (beaucoup de désordre), puis la nuit où la Crumb Crew se montre. */
 export const LEVEL3_DAY: DayPlan = { day: 1, goal: 4, recipes: ['latte', 'cappuccino', 'mocha', 'orangeJuice', 'lemonade', 'berryFizz'], maxSeated: 2, parties: [2], dogMorning: 'none' };
+
+/** Niveau 4 : la boulangerie rouvre — viennoiseries de Grand-mère, plus un café ou un jus (journée courte). */
+export const LEVEL4_DAY: DayPlan = { day: 1, goal: 4, recipes: ['croissant', 'melonpan', 'cinnamon', 'shortcake', 'latte'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };
+
+/** Niveau 5 : le salon de thé — thés de Leila, gâteaux en parts et biscuits glacés (journée courte). */
+export const LEVEL5_DAY: DayPlan = { day: 1, goal: 4, recipes: ['mintTea', 'karak', 'greenTea', 'cookies', 'lemonCake', 'chocCake', 'chamomile', 'blackTea'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };

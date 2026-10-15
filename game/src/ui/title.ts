@@ -28,7 +28,7 @@ export function heroSelect(): Promise<{ hero: 'm' | 'f'; name: string; uniform: 
       <div class="field">Your name <input id="nm" maxlength="10" value="HANA"></div>
       <div class="field">Café uniform <span class="seg" id="uni"><button class="on" data-u="espresso">Brown</button><button data-u="noir">Black</button></span></div>
       <div class="heroes" id="uniPrev" style="margin:6px 0 0"></div>
-      <div class="field">Start at <span class="seg" id="lvl"><button class="on" data-l="1">Level 1</button><button data-l="2">Level 2 · Juice bar</button><button data-l="3">Level 3 · Crumb Crew</button></span></div>
+      <div class="field">Start at <span class="seg" id="lvl"><button class="on" data-l="1">Level 1</button><button data-l="2">Level 2 · Juice bar</button><button data-l="3">Level 3 · Crumb Crew</button><button data-l="4">Level 4 · Bakery</button><button data-l="5">Level 5 · Tea room</button></span></div>
       <div class="row"><button class="btn" id="go">Start the story</button></div></div></div>`);
     ui().appendChild(el);
     const nm = el.querySelector('#nm') as HTMLInputElement;

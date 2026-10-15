@@ -275,3 +275,38 @@ body.pixel .art .artText { display: none; }
 @keyframes rdHand { 0%, 28%, 64%, 96%, 100% { transform: translate(0, 0); } 38%, 54% { transform: translate(-26px, -38px); } 72%, 86% { transform: translate(-11px, -31px); } }
 @keyframes rdPage { 0%, 72% { opacity: 0; transform: scaleX(1); } 75% { opacity: 1; transform: scaleX(1); } 85% { opacity: 1; transform: scaleX(-1); } 89%, 100% { opacity: 0; transform: scaleX(-1); } }
 .blinkEyes { transform-box: fill-box; transform-origin: center; animation: blink 2.2s infinite; }
+
+/* Boulangerie (niveau 4) : fouet qui tourne, vapeur des viennoiseries, fumée quand ça brûle */
+#whisk { transform-box: fill-box; transform-origin: 10% 90%; }
+#whisk.stir { animation: whiskStir .52s ease-in-out; }
+@keyframes whiskStir { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-70px, 4px) rotate(-14deg); } 50% { transform: translate(-36px, 10px) rotate(8deg); } 75% { transform: translate(-80px, 2px) rotate(-6deg); } }
+@keyframes steam { 0% { transform: translateY(0); opacity: .2; } 50% { opacity: .9; } 100% { transform: translateY(-14px); opacity: 0; } }
+@keyframes smoke { 0% { transform: translateY(0) scale(.6); opacity: .8; } 100% { transform: translateY(-140px) scale(1.6); opacity: 0; } }
+
+/* La vraie recette (fiche de Grand-mère en grand) */
+.home-recipe { position: relative; width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box;
+  background: #fffaf2 repeating-linear-gradient(#fffaf2 0 31px, #f6dfe3 31px 32px); border: 3px solid #3b2838; border-radius: 18px;
+  padding: 22px 28px 16px 56px; color: #4a3040; font-family: Nunito, sans-serif; box-shadow: 0 10px 30px rgba(59, 40, 56, .25); }
+.home-recipe::before { content: ''; position: absolute; left: 38px; top: 0; bottom: 0; width: 2px; background: #f2a2b4; opacity: .7; }
+.home-recipe .cc-x { position: absolute; top: 10px; right: 12px; }
+.hr-head { display: flex; gap: 16px; align-items: center; }
+.hr-head svg { flex: none; overflow: visible; }
+.hr-from { margin: 0; font: italic 600 14px Fraunces, serif; color: #c0666a; }
+.home-recipe h2 { margin: 2px 0 8px; font: italic 700 34px Fraunces, serif; color: #6e4a3e; }
+.hr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hr-chips span { background: #fdf1dd; border: 2px solid #e3c08a; border-radius: 999px; padding: 3px 10px; font-weight: 800; font-size: 13px; }
+.hr-body { display: grid; grid-template-columns: 1fr 1.7fr; gap: 24px; margin-top: 14px; }
+.home-recipe h3 { margin: 4px 0 6px; font: italic 700 21px Fraunces, serif; color: #8a5a4a; }
+.home-recipe h4 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #c47a2c; }
+.home-recipe ul { margin: 0; padding-left: 18px; line-height: 1.6; font-weight: 700; font-size: 15px; }
+.home-recipe ol { margin: 0; padding-left: 22px; line-height: 1.5; font-size: 15px; font-weight: 600; }
+.home-recipe ol li { margin-bottom: 7px; }
+.home-recipe ol li::marker { font-weight: 900; color: #c47a2c; }
+.hr-tip { background: #eaf4ec; border: 2px dashed #7fb06e; border-radius: 12px; padding: 10px 12px; font-size: 15px; line-height: 1.45; }
+.hr-foot { margin: 12px 0 0; text-align: center; font: italic 13px Fraunces, serif; color: #8a6a5a; }
+@media (max-width: 640px) {
+  .home-recipe { padding: 18px 16px 14px 30px; }
+  .home-recipe::before { left: 18px; }
+  .hr-head { flex-direction: column; align-items: flex-start; }
+  .hr-body { grid-template-columns: 1fr; }
+}

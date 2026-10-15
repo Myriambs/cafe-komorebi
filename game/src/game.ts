@@ -16,7 +16,11 @@ import { PROFILES } from './logic/profiles';
 import { openCard } from './ui/card';
 import { openPlayer } from './ui/player';
 import { openMenu } from './ui/menuBoard';
-import { planFor, LEVEL2_DAY, LEVEL3_DAY, type DayPlan } from './logic/level1';
+import { planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY, type DayPlan } from './logic/level1';
+import { TeaStation, newTeaBench, leilaLetter } from './ui/teaStation';
+import { teaNight } from './ui/teaNight';
+import { BakeryStation, newBakeBench, crewNote } from './ui/bakeryStation';
+import { bakeNight, basketArt, BASKET } from './ui/bakeNight';
 import { crewNight } from './ui/crew';
 import { CREW, isMouse, type MouseWho } from './logic/outfits';
 import { biscuit, grandma } from './art/cast.js';
@@ -27,7 +31,7 @@ let ext: Exterior | null = null;
 const pixel = (_on: boolean) => document.body.classList.remove('pixel');
 function setExterior(mode: 'morning' | 'sunset' | 'night' | null, autoRotate = false) {
   ext?.dispose(); ext = null;
-  if (mode) { ext = createExterior(world(), mode, { autoRotate }); ext.onPick(n => { if (n === 'menu') openMenu(S ? (S.level === 3 ? LEVEL3_DAY.recipes : S.level === 2 ? LEVEL2_DAY.recipes : planFor(S.day).recipes) : undefined); }); }
+  if (mode) { ext = createExterior(world(), mode, { autoRotate }); ext.onPick(n => { if (n === 'menu') openMenu(S ? (S.level === 5 ? LEVEL5_DAY.recipes : S.level === 4 ? LEVEL4_DAY.recipes : S.level === 3 ? LEVEL3_DAY.recipes : S.level === 2 ? LEVEL2_DAY.recipes : planFor(S.day).recipes) : undefined); }); }
   return ext;
 }
 
@@ -46,11 +50,20 @@ const START: [number, number, number] = [7.4, 0.03, 4.7];
 const PATH: [number, number, number][] = [[3.6, 0.03, 4.7], [3.6, 0.15, 2.6], [3.55, 0.15, 0.8]];
 const CAT_PATH: [number, number, number][] = [[3.1, 0.03, 4.95], [3.05, 0.15, 2.7], [3.0, 0.15, 1.05]];
 
+let jumped = false;
 export async function run() {
   for (;;) {
     clear(); pixel(false);
     setExterior('sunset', true); // écran titre : crépuscule et étoiles filantes
     const saved = load();
+    // raccourci de test : ?level=5 lance directement ce niveau (héroïne par défaut), sans écran titre
+    const jump = Number(new URLSearchParams(location.search).get('level'));
+    if (jump >= 1 && jump <= 5 && !jumped) {
+      jumped = true;
+      S = newSave('f', 'Hana', 'espresso');
+      if (jump > 1) { S.level = jump; S.phase = 'morning'; S.nightsFed = 2; }
+      persist();
+    } else {
     const choice = await titleScreen(!!saved);
     if (choice === 'continue' && saved) S = saved;
     else {
@@ -59,9 +72,12 @@ export async function run() {
       if (p.level > 1) { S.level = p.level; S.phase = 'morning'; S.nightsFed = 2; }
       persist();
     }
+    }
     if (S.level === 1) await playLevel1();
     if (S.level === 2) await playLevel2();
     if (S.level === 3) await playLevel3();
+    if (S.level === 4) await playLevel4();
+    if (S.level === 5) await playLevel5();
   }
 }
 
@@ -184,9 +200,230 @@ async function playLevel3() {
   await levelReport({
     level: 3, name: S.name, served: S.totalServed, coins: S.coins, stats: S.stats,
     gained: CREW.map(w => ({ id: w, state: 'cheer', vars: petVars(w), name: PROFILES[w].defaultName })),
-    next: 'Next: Level 4 · The Bakery opens 🥐 (coming soon)', button: 'Back to the title'
+    next: 'Next: Level 4 · The Bakery opens 🥐', button: 'Start Level 4 ▶'
+  });
+  S.level = 4; S.day = 1; S.phase = 'morning'; S.stats = newStats(); S.totalServed = 0; persist();
+}
+
+/* ---------- Niveau 4 : la boulangerie ---------- */
+// Grand-mère confie sa boîte à recettes ; la Crumb Crew a réparé le four pendant la nuit.
+async function playLevel4() {
+  setHeroName(S.name);
+  while (S.phase !== 'done') {
+    if (S.phase === 'morning' || S.phase === 'service' || S.phase === 'prologue') {
+      await morning(1, LEVEL4_DAY, 'Level 4 · Morning', [
+        H('Grandma called last night: "Come early tomorrow, I have something for you!"'),
+        H('She sounded so excited… I wonder what it is.')
+      ]);
+      await bakeryOpening();
+      const result = await juiceService(LEVEL4_DAY, 'The <b>bakery</b> is open! Take orders, then tap <b>🥐 Bakery</b> for pastries. Coffee and juice still come from their stations.', undefined, true);
+      S.coins = result.coins; S.totalServed += result.served;
+      await basketForTheCrew(result.room);
+      result.room.destroy();
+      await dayCard(1, result.served, result.earned, S.coins, 'Close up for the night');
+      S.phase = 'night'; persist();
+    }
+    if (S.phase === 'night') {
+      let room!: Room;
+      await wipe(() => {
+        clear(); setExterior(null);
+        room = new Room({
+          hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'night', dog: 'patrol', day: 1, goal: 0, coins: S.coins,
+          recipes: [], maxSeated: 0, customers: false, grandma: false, juiceOpen: true, bakeryOpen: true, mouseHole: 'door',
+          outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
+        });
+        room.onCard = who => openCharCard(who, room);
+        room.onMusic = () => openPlayer();
+      });
+      music.setMood('night');
+      await bakeNight({ room, mokaName: S.names.moka, mokaVars: petVars('moka'), varsOf: w => petVars(w), heroName: S.name });
+      room.destroy();
+      music.setMood('day');
+      S.phase = 'done'; persist();
+    }
+  }
+  await levelReport({
+    level: 4, name: S.name, served: S.totalServed, coins: S.coins, stats: S.stats,
+    gained: [{ id: 'nibbles', state: 'cheer', vars: petVars('nibbles'), name: 'Nibbles, the tiny baker' }],
+    next: 'Next: Level 5 · Tea & cakes 🍵', button: 'Start Level 5 ▶'
+  });
+  S.level = 5; S.day = 1; S.phase = 'morning'; S.stats = newStats(); S.totalServed = 0; persist();
+}
+
+/* ---------- Niveau 5 : le salon de thé ---------- */
+// Leila, la vieille amie de Grand-mère à Tunis, envoie son coffret de thés et ses notes.
+async function playLevel5() {
+  setHeroName(S.name);
+  while (S.phase !== 'done') {
+    if (S.phase === 'morning' || S.phase === 'service' || S.phase === 'prologue') {
+      await morning(1, LEVEL5_DAY, 'Level 5 · Morning', [
+        H('A big parcel was waiting at the door this morning… covered in stamps from Tunis!'),
+        H('It smells like mint and jasmine. Grandma is going to be so happy.')
+      ]);
+      await teaOpening();
+      const result = await juiceService(LEVEL5_DAY, 'The <b>tea room</b> is open! Take orders, then tap <b>🍵 Tea room</b>. Leila\'s notes on the left show how to make each tea.', undefined, true, true);
+      S.coins = result.coins; S.totalServed += result.served;
+      result.room.tip(null);
+      await sleep(600);
+      await talk([
+        H('Every cup served! Tea really is patience in a cup…', S.uniform),
+        H("Tonight I'll leave a tiny tea set on table 2. I wonder who will come ♡", S.uniform)
+      ]);
+      result.room.destroy();
+      await dayCard(1, result.served, result.earned, S.coins, 'Close up for the night');
+      S.phase = 'night'; persist();
+    }
+    if (S.phase === 'night') {
+      let room!: Room;
+      await wipe(() => {
+        clear(); setExterior(null);
+        room = new Room({
+          hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'night', dog: 'patrol', day: 1, goal: 0, coins: S.coins,
+          recipes: [], maxSeated: 0, customers: false, grandma: false, juiceOpen: true, bakeryOpen: true, teaOpen: true, mouseHole: 'door',
+          outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
+        });
+        room.onCard = who => openCharCard(who, room);
+        room.onMusic = () => openPlayer();
+      });
+      music.setMood('night');
+      await teaNight({ room, heroName: S.name, hero: S.hero, heroVars: heroVars(), mokaName: S.names.moka, mokaVars: petVars('moka'), varsOf: w => petVars(w) });
+      room.destroy();
+      music.setMood('day');
+      S.phase = 'done'; persist();
+    }
+  }
+  await levelReport({
+    level: 5, name: S.name, served: S.totalServed, coins: S.coins, stats: S.stats, gained: [],
+    next: 'Next: Level 6 · Help wanted! Interview and hire a new team member 👋 (coming soon)', button: 'Back to the title'
   });
   await wipe(() => { clear(); pixel(false); });
+}
+
+/** Avant d'ouvrir : le coffret de Leila, puis le nouveau coin salon de thé. */
+async function teaOpening() {
+  let room!: Room;
+  await wipe(() => {
+    clear();
+    room = new Room({
+      hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: 0, coins: S.coins,
+      recipes: [], maxSeated: 0, customers: false, grandma: 'stand', juiceOpen: true, bakeryOpen: true, mouseHole: 'door',
+      outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
+    });
+  });
+  await talk([
+    G(`Good morning, ${S.name}! Is that… a parcel from Tunis? Oh, I know that handwriting!`),
+    G('It is from Leila, my oldest friend. We worked in a little tea house together when we were young.')
+  ]);
+  await teaChest();
+  await talk([
+    H('Tins of tea, fresh mint, cardamom… and a whole notebook of tea notes!'),
+    G('Then today we open a tea corner. Come, I set it up early this morning.')
+  ]);
+  let tea!: TeaStation;
+  await wipe(() => { room.destroy(); tea = new TeaStation(null, newTeaBench(), undefined, true); tea.extra(leilaLetter()); });
+  music.sfx('twinkle');
+  await talk([
+    H('A real tea room! Tins, a kettle with two temperatures, and cakes!'),
+    G('Leila always said: tea is patience in a cup. Too short, it is only hot water. Too long, it turns bitter.'),
+    G('And green tea must never meet boiling water… except for her Tunisian mint tea!'),
+    H('Mint tea with pine nuts on top? I have to try that.'),
+    M('Hmph. As long as nobody puts mint in MY water bowl.'),
+    G('I baked a lemon cake and a chocolate cake, and the cookies are waiting for their icing.'),
+    G('And if a customer asks for the recipe, tap 📖 in the notes. Everything is written there, for real kitchens too ♡')
+  ]);
+  await wipe(() => tea.close());
+}
+
+/** Le coffret de thé de Leila, en grand. */
+function teaChest(): Promise<void> {
+  return new Promise(resolve => {
+    const tin = (x: number, c: string, d: string) => `<rect x="${x - 26}" y="70" width="52" height="64" rx="5" fill="${c}" stroke="#3b2838" stroke-width="2.5"/><rect x="${x - 29}" y="62" width="58" height="13" rx="4" fill="${d}" stroke="#3b2838" stroke-width="2.5"/><rect x="${x - 17}" y="88" width="34" height="26" rx="4" fill="#fffaf2"/>`;
+    const el = h(`<div class="card-wrap"><div class="panel" style="text-align:center;max-width:460px">
+      <svg viewBox="0 0 300 200" width="300" height="200" style="display:block;margin:0 auto">
+        ${tin(95, '#8fbf8a', '#6f957d')}${tin(150, '#5a4a52', '#3e3238')}${tin(205, '#f2d27a', '#d9a94a')}
+        <path d="M30 120 L270 120 L258 186 L42 186Z" fill="#c99a6e" stroke="#3b2838" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M30 120 L270 120" stroke="#3b2838" stroke-width="3"/>
+        ${[[70, 152], [150, 160], [230, 152]].map(([x, y]) => `<g transform="translate(${x} ${y})">${[0, 60, 120, 180, 240, 300].map(a => `<ellipse cy="-9" rx="4" ry="9" fill="#e86a5f" transform="rotate(${a})"/>`).join('')}<circle r="5" fill="#f2c46a"/></g>`).join('')}
+        <g transform="translate(250 60) rotate(14)">${[[-8, 0, -40], [4, -8, 0], [12, 4, 40]].map(([x, y, a]) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="6" fill="#7fc08a" stroke="#3b2838" stroke-width="1.5" transform="rotate(${a} ${x} ${y})"/>`).join('')}</g>
+      </svg>
+      <h2>Leila's tea chest</h2><p>Three tea tins, fresh mint, cardamom… and a notebook: "Leila's tea notes".</p>
+      <div class="row"><button class="btn gold">Open it ♡</button></div></div></div>`);
+    ui().appendChild(el);
+    music.sfx('twinkle');
+    el.querySelector('button')!.addEventListener('click', () => { el.remove(); resolve(); });
+  });
+}
+
+/** Avant d'ouvrir : Grand-mère offre sa boîte à recettes, puis on découvre la cuisine… déjà réparée par la Crumb Crew. */
+async function bakeryOpening() {
+  let room!: Room;
+  await wipe(() => {
+    clear();
+    room = new Room({
+      hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: 0, coins: S.coins,
+      recipes: [], maxSeated: 0, customers: false, grandma: 'stand', juiceOpen: true, mouseHole: 'door',
+      outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
+    });
+  });
+  await talk([
+    G(`Good morning, ${S.name}! Before we open… look what I found in the attic.`),
+    G('My old recipe tin. Croissants, melon pan, cinnamon rolls, strawberry shortcake… forty years of mornings.')
+  ]);
+  await recipeTin();
+  await talk([
+    H('Grandma… your handwriting! There are little hearts on every card.'),
+    G("It's yours now, dear. But the bakery oven has been broken for years. I'm afraid it won't even light."),
+    H("Let's go and look anyway!")
+  ]);
+  let kitchen!: BakeryStation;
+  await wipe(() => { room.destroy(); kitchen = new BakeryStation(null, newBakeBench(), undefined, true); kitchen.extra(crewNote()); });
+  music.sfx('twinkle');
+  await talk([
+    H('The kitchen is… spotless? And the oven is already warm!'),
+    H('Tiny footprints in the flour… and a little note pinned to the oven.'),
+    NARR('"The oven works now! Thank you for the feast. — C.C. 🥐"'),
+    H('C.C.… the Crumb Crew! They fixed it during the night ♡'),
+    G('C.C.? Who is that, dear?'),
+    H('…Just some very small friends.'),
+    M('Hmph. They worked until sunrise. Nibbles fell asleep in the flour sack.'),
+    G("Well then! The Komorebi Bakery is open again. Let's bake!")
+  ]);
+  await wipe(() => kitchen.close());
+}
+
+/** La boîte à recettes de Grand-mère, en grand. */
+function recipeTin(): Promise<void> {
+  return new Promise(resolve => {
+    const card = (x: number, r: number, t: string) => `<g transform="translate(${x} 70) rotate(${r})"><rect x="-34" y="-46" width="68" height="60" rx="4" fill="#fffaf2" stroke="#7a5a4a" stroke-width="2"/><path d="M-26 -26 H26 M-26 -14 H26 M-26 -2 H18" stroke="#f0c9cf" stroke-width="1.5"/><text x="0" y="-32" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-weight="700" font-size="11" fill="#6e4a3e">${t}</text><text x="20" y="8" font-size="10" fill="#c0666a">♡</text></g>`;
+    const el = h(`<div class="card-wrap"><div class="panel" style="text-align:center;max-width:460px">
+      <svg viewBox="0 0 300 200" width="300" height="200" style="display:block;margin:0 auto">
+        <path d="M40 60 L260 60 L250 180 Q150 196 50 180Z" fill="#7fa8d8" stroke="#3b2838" stroke-width="3" stroke-linejoin="round"/>
+        ${card(90, -10, 'Croissant')}${card(150, 0, 'Melon pan')}${card(210, 10, 'Cinnamon')}
+        <path d="M40 92 L260 92 L250 180 Q150 196 50 180Z" fill="#7fa8d8" stroke="#3b2838" stroke-width="3" stroke-linejoin="round"/>
+        ${[[80, 130], [150, 146], [220, 130], [115, 166], [185, 166]].map(([x, y]) => `<g>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="${x}" cy="${y - 8}" rx="5" ry="8" fill="#fffaf2" transform="rotate(${a} ${x} ${y})"/>`).join('')}<circle cx="${x}" cy="${y}" r="4" fill="#f2c46a"/></g>`).join('')}
+        <path d="M30 40 L270 40 L262 60 L38 60Z" fill="#9cc0e8" stroke="#3b2838" stroke-width="3" stroke-linejoin="round" transform="rotate(-8 30 60)"/>
+      </svg>
+      <h2>Grandma's recipe tin</h2><p>Four handwritten cards, a little flour… and a heart on every one.</p>
+      <div class="row"><button class="btn gold">Open it ♡</button></div></div></div>`);
+    ui().appendChild(el);
+    music.sfx('twinkle');
+    el.querySelector('button')!.addEventListener('click', () => { el.remove(); resolve(); });
+  });
+}
+
+/** Dernier client parti : un panier de mini-croissants pour la petite porte de la Crumb Crew. */
+async function basketForTheCrew(room: Room) {
+  room.tip(null);
+  await sleep(600);
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.dataset.y = String(BASKET.y); g.innerHTML = basketArt(BASKET.x, BASKET.y);
+  room.$('depth').appendChild(g);
+  music.sfx('twinkle');
+  await talk([
+    H('Phew, every pastry sold! I saved the smallest croissants for someone special…', S.uniform),
+    H('A basket by the little door, with a note: "Thank you for fixing the oven ♡"', S.uniform),
+    M("Hmph. They'll pretend it was nothing. Then they'll eat every last crumb.")
+  ]);
 }
 
 /** Niveau 3, juste après le départ du dernier client : une souris pousse la porte secrète, croyant le café vide,
@@ -213,11 +450,12 @@ function trackStats(room: Room) {
 }
 
 /** Une journée café + bar à jus (niveaux 2 et 3). `setup` ajoute les règles propres au niveau. */
-async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void): Promise<{ room: Room; served: number; earned: number; coins: number }> {
+async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void, bakery = false, tea = false): Promise<{ room: Room; served: number; earned: number; coins: number }> {
   const start = S.coins;
   const room = new Room({
     hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: plan.goal, coins: S.coins,
     recipes: plan.recipes, maxSeated: plan.maxSeated, parties: plan.parties, customers: true, grandma: false, juiceOpen: true,
+    bakeryOpen: bakery, teaOpen: tea, mouseHole: bakery ? 'door' : undefined,
     outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
   });
   room.onCard = who => openCharCard(who, room);
@@ -225,8 +463,9 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
   trackStats(room);
   const stock: Stock = { cups: 20, espresso: 20, milk: 16, caramel: 8, cardamom: 10, chocolate: 10 };
   const jstock: JuiceStock = { glasses: 20, orange: 12, apple: 10, lemon: 10, berry: 10, mint: 10, ice: 30, honey: 10, soda: 10 };
-  const bench = newBench(), jbench = newJuiceBench();
-  let station: Station | JuiceStation | null = null, first = true;
+  const bench = newBench(), jbench = newJuiceBench(), bbench = newBakeBench();
+  const tbench = newTeaBench();
+  let station: Station | JuiceStation | BakeryStation | TeaStation | null = null, first = true, firstBake = true, firstTea = true;
   setup?.(room);
   room.tip(intro);
   setTimeout(() => room.tip(null), 9000);
@@ -241,6 +480,20 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
     js.onFirstServe = () => { if (first) { first = false; js.showHint(null); } };
     js.onClose = () => { station = null; room.drawHud(); };
     station = js;
+  };
+  room.onBakery = () => {
+    if (station) return;
+    const bs = new BakeryStation(room, bbench, firstBake ? 'Tap the card of the pastry ordered. Put its ingredients in the bowl, stir, shape it on the board, then take it out of the oven when the needle is <b>golden</b>!' : undefined);
+    bs.onFirstServe = () => { if (firstBake) { firstBake = false; bs.showHint(null); } };
+    bs.onClose = () => { station = null; room.drawHud(); };
+    station = bs;
+  };
+  room.onTea = () => {
+    if (station) return;
+    const ts = new TeaStation(room, tbench, firstTea ? 'Read Leila\'s notes (left). Tap a tin, set the kettle, pour, and serve the tea when the needle is <b>just right</b>. Cakes: tap twice to cut a slice.' : undefined);
+    ts.onFirstServe = () => { if (firstTea) { firstTea = false; ts.showHint(null); } };
+    ts.onClose = () => { station = null; room.drawHud(); };
+    station = ts;
   };
   await new Promise<void>(resolve => { room.onEmpty = () => { station?.close(); resolve(); }; });
   await sleep(600);

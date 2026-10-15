@@ -7,7 +7,7 @@ const LN = '#7a5a4a';
 const L = (w = 2) => `stroke="${LN}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 const TXT = (x, y, t, s = 16, a = 'middle', c = P.ink, w = 800) => `<text x="${x}" y="${y}" text-anchor="${a}" font-family="Nunito,sans-serif" font-weight="${w}" font-size="${s}" fill="${c}">${t}</text>`;
 const fmt = n => (Math.round(n * 100) / 100).toString();
-const ING = { espresso: { name: 'Espresso' }, water: { name: 'Hot water' }, milk: { name: 'Milk' }, foam: { name: 'Foam' }, caramel: { name: 'Caramel' }, cardamom: { name: 'Cardamom' }, chocolate: { name: 'Chocolate' }, orange: { name: 'Orange' }, apple: { name: 'Apple' }, lemon: { name: 'Lemon' }, berry: { name: 'Berries' }, mint: { name: 'Mint' }, ice: { name: 'Ice' }, honey: { name: 'Honey' }, soda: { name: 'Sparkling water' } };
+const ING = { espresso: { name: 'Espresso' }, water: { name: 'Hot water' }, milk: { name: 'Milk' }, foam: { name: 'Foam' }, caramel: { name: 'Caramel' }, cardamom: { name: 'Cardamom' }, chocolate: { name: 'Chocolate' }, orange: { name: 'Orange' }, apple: { name: 'Apple' }, lemon: { name: 'Lemon' }, berry: { name: 'Berries' }, mint: { name: 'Mint' }, ice: { name: 'Ice' }, honey: { name: 'Honey' }, soda: { name: 'Sparkling water' }, flour: { name: 'Flour' }, butter: { name: 'Butter' }, sugar: { name: 'Sugar' }, egg: { name: 'Eggs' }, glaze: { name: 'Honey glaze' }, pearl: { name: 'Crunchy sugar' }, icing: { name: 'White icing' }, strawberry: { name: 'Strawberries' } };
 export const SLOTS = [520, 800, 1080];
 
 const label = (x, y, t) => `<g class="lbl"><rect x="${x - t.length * 4.6 - 16}" y="${y - 15}" width="${t.length * 9.2 + 32}" height="28" rx="14" fill="#fffaf2" ${L(1.5)}/>${TXT(x, y + 5, t, 14)}</g>`;

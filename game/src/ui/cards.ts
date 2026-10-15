@@ -36,18 +36,22 @@ export function levelReport(o: { level: number; name: string; served: number; co
     const max = Math.max(1, ...drinks.map(d => d[1]));
     const nameOf = (id: string) => RECIPES.find(r => r.id === id)?.name ?? id;
     const best = drinks[0];
+    const teas = drinks.filter(([id]) => RECIPES.find(r => r.id === id)?.kind === 'tea').reduce((n, d) => n + d[1], 0);
+    const baked = drinks.filter(([id]) => RECIPES.find(r => r.id === id)?.kind === 'pastry').reduce((n, d) => n + d[1], 0);
     const praise = [
       best ? `Your <b>${nameOf(best[0])}</b> was the café favourite (${best[1]} made)` : '',
       o.stats.delighted ? `<b>${o.stats.delighted}</b> customers left delighted` : '',
       o.stats.books ? `You lent <b>${o.stats.books}</b> books and magazines` : '',
-      o.stats.tips ? `You received <b>${o.stats.tips}</b> coins in tips ♡` : ''
+      o.stats.tips ? `You received <b>${o.stats.tips}</b> coins in tips ♡` : '',
+      baked ? `You baked <b>${baked}</b> pastries for the town 🥐` : '',
+      teas ? `You served <b>${teas}</b> teas and sweets from the tea room 🍵` : ''
     ].filter(Boolean);
     const el = h(`<div class="card-wrap"><div class="panel report">
       <h2>Level ${o.level} complete!</h2>
       <p>Well done, ${o.name}. Here is how your café did:</p>
       <div class="stats"><div><b>${o.served}</b>happy customers</div><div><b>${Math.round(o.coins * 100) / 100}</b>coins</div><div><b>${o.stats.delighted}</b>delighted</div></div>
       <div class="rp-grid">
-        <div class="rp-chart"><h3>Drinks you made</h3>${drinks.map(([id, n]) => `<div class="rp-row"><span>${nameOf(id)}</span><i style="width:${Math.round(n / max * 100)}%"></i><b>${n}</b></div>`).join('') || '<p>No drinks yet</p>'}</div>
+        <div class="rp-chart"><h3>${baked || teas ? 'What you made' : 'Drinks you made'}</h3>${drinks.map(([id, n]) => `<div class="rp-row"><span>${nameOf(id)}</span><i style="width:${Math.round(n / max * 100)}%"></i><b>${n}</b></div>`).join('') || '<p>No drinks yet</p>'}</div>
         <div class="rp-side"><h3>You were great at</h3><ul>${praise.map(p => `<li>${p}</li>`).join('')}</ul>
           ${o.gained.length ? `<h3>You gained</h3><div class="rp-pets">${o.gained.map(g => `<div><div class="rp-pet">${charSvg(g.id, g.state, g.vars ? `style="${g.vars}"` : '')}</div><b>${g.name}</b></div>`).join('')}</div>` : ''}
         </div>

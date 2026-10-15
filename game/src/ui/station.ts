@@ -47,7 +47,7 @@ export class Station {
   /** Le même élément existe dans le calque pixel et dans la copie nette des étiquettes. */
   $$(id: string) { return Array.from(this.el.querySelectorAll('#' + id)) as SVGElement[]; }
 
-  private orders() { return this.room.ordered().filter(c => c.recipe?.kind !== 'juice'); }
+  private orders() { return this.room.ordered().filter(c => !c.recipe?.kind); }
   private renderTickets() {
     this.$('tickets').innerHTML = this.orders().slice(0, 3).map((c, i) => { const rem = c.qty - c.servedCups; return ticketArt({ id: c.id, recipe: { ...c.recipe!, name: (rem > 1 ? `${rem} × ` : '') + c.recipe!.name }, who: [`Table ${c.table + 1}`, String(c.table + 1), ''] as [string, string, string], patience: c.patience }, i); }).join('')
       || TXT(800, 170, 'No orders waiting: take orders in the room', 20, 'middle', '#8a6a5a', 700);
