@@ -16,6 +16,7 @@ import { PROFILES } from './logic/profiles';
 import { openCard } from './ui/card';
 import { openPlayer } from './ui/player';
 import { openMenu } from './ui/menuBoard';
+import { recipeById } from './logic/recipes';
 import { planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY, LEVEL6_DAY, type DayPlan } from './logic/level1';
 import { TeaStation, newTeaBench, leilaLetter } from './ui/teaStation';
 import { teaNight } from './ui/teaNight';
@@ -610,7 +611,11 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
   if (helper) {
     const spot = ROLE_SPOT[helper.role];
     const who = room.stageRef.add(`<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="idle" overflow="visible">${customerSvg(helper.m)}</svg>`, spot.x, spot.y, { flipable: true });
-    const mine = (c: Cust) => helper.role === 'coffee' ? !c.recipe?.kind : c.recipe?.kind === (helper.role === 'pastry' ? 'pastry' : helper.role);
+    const isMine = (k: string | undefined) => helper.role === 'coffee' ? !k : k === helper.role;
+    const mine = (c: Cust) => isMine(c.recipe?.kind);
+    // une commande sur deux est pour son poste : elle a vraiment du travail
+    const theirs = plan.recipes.filter(id => isMine(recipeById(id).kind));
+    if (theirs.length) room.forceOrder = n => n % 2 === 0 ? theirs[Math.floor(n / 2) % theirs.length] : null;
     helpTimer = window.setInterval(() => {
       const c = room.ordered().find(mine); if (!c) return;
       const r = c.recipe!; room.serve(c.id); helped++;

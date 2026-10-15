@@ -65,6 +65,9 @@ export class Room {
   spawning: boolean;
   private nextId = 1;
   private ordersSeen = new Set<string>();
+  private ordersTaken = 0;
+  /** Niveau 6 : impose certaines commandes (pour que la nouvelle recrue ait du travail). */
+  forceOrder?: (n: number) => string | null;
   private cooldown = 1.5;
   private timer: number;
   private chatTimer: number;
@@ -358,7 +361,8 @@ export class Room {
     const all = [...new Set(this.o.recipes)];
     let ids = all.filter(id => !this.ordersSeen.has(id));
     if (!ids.length) { this.ordersSeen.clear(); ids = all; }
-    const id = ids[Math.floor(Math.random() * ids.length)];
+    const id = this.forceOrder?.(this.ordersTaken) ?? ids[Math.floor(Math.random() * ids.length)];
+    this.ordersTaken++;
     this.ordersSeen.add(id);
     c.recipe = recipeById(id);
     c.state = 'ordered';
