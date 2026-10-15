@@ -12,7 +12,7 @@ const PORTRAIT_BOX: Partial<Record<CharId, string>> = {
 
 export function say(line: Line, choices?: string[]): Promise<number> {
   return new Promise(resolve => {
-    const narr = !line.who || line.who === 'narr';
+    const narr = (!line.who && !line.svg) || line.who === 'narr';
     const box = h(`<div class="dlg ${narr ? 'narr' : ''} ${line.right ? 'right' : ''}">
       ${narr ? '' : `<div class="portrait">${line.svg ? line.svg : pixelPortrait(line.who!, line.state) ? `<img class="pxp" alt="" src="${pixelPortrait(line.who!, line.state)}">` : charSvg(line.who as CharId, line.state ?? 'idle', line.vars ? `style="${line.vars}"` : '', PORTRAIT_BOX[line.who as CharId] ?? '35 20 130 130')}</div>`}
       <div>${narr ? '' : `<span class="name">${line.name ?? ''}</span>`}<div class="text"></div><div class="choices"></div></div>
