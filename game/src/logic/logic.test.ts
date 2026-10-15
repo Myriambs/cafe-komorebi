@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { matches, cannotAdd, recipeById } from './recipes';
 import { tickPatience, outcome, payment, hearts } from './service';
 import { dogJoins, planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY } from './level1';
+import { CANDIDATES, QUESTIONS, FIRST_QUESTIONS, nextQuestions, interviewOf, matchCount, needsRaise, type QId } from './hiring';
 import { TEAS, SWEETS, tempFor, cannotPour, cannotAddExtra, identify, steepResult, steepAfter, knifeAt, goodSlice, JUST_RIGHT } from './tea';
 import { HOME_RECIPES } from './homeRecipes';
 import { PASTRIES, pastryById, cannotAddDough, doughReady, bakeResult, heatAfter, GOLDEN } from './bakery';
@@ -177,5 +178,35 @@ describe('level 5 · tea & cakes', () => {
   });
   it('the cake knife swings back and forth', () => {
     expect(knifeAt(0)).toBe(0); expect(knifeAt(1.2)).toBeCloseTo(1); expect(goodSlice(knifeAt(0.6))).toBe(true); expect(goodSlice(0.1)).toBe(false);
+  });
+});
+
+describe('level 6 · help wanted', () => {
+  it('six candidates, each answers every question', () => {
+    expect(CANDIDATES).toHaveLength(6);
+    for (const c of CANDIDATES) for (const q of Object.keys(QUESTIONS) as QId[]) { expect(c.answers[q].text.length).toBeGreaterThan(10); expect(c.answers[q].score).toBeGreaterThanOrEqual(-2); }
+  });
+  it('next questions follow the answer and never repeat', () => {
+    const c = CANDIDATES[0];
+    const n1 = nextQuestions(['experience'], 'experience', c.answers.experience);
+    expect(n1).toEqual(['rush', 'learn']);
+    const n2 = nextQuestions(['experience', 'rush'], 'rush', c.answers.rush);
+    expect(n2).not.toContain('rush'); expect(n2).not.toContain('experience'); expect(n2).toHaveLength(2);
+    expect(FIRST_QUESTIONS).toHaveLength(3);
+  });
+  it('scores the interview and matches the job post', () => {
+    const i = interviewOf('marco', ['animals', 'upset']);
+    expect(i.score).toBe(-3); expect(i.notes[0]).toMatch(/allergic/);
+    expect(matchCount(CANDIDATES[0], { qualities: ['coffee', 'kind', 'calm'], pay: 'fair', hours: 'part' })).toBe(2);
+  });
+  it('asks for a raise only when the pay is too low', () => {
+    const marco = CANDIDATES.find(c => c.id === 'marco')!;
+    expect(needsRaise(marco, 'fair')).toBe(true); expect(needsRaise(marco, 'generous')).toBe(false);
+    expect(needsRaise(CANDIDATES.find(c => c.id === 'lina')!, 'low')).toBe(false);
+  });
+  it('saves level 6 and the new team member', () => {
+    const s = validate({ ...newSave('f', 'Hana', 'espresso'), level: 6, staff: 'noor' })!;
+    expect(s.level).toBe(6); expect(s.staff).toBe('noor');
+    expect(validate({ ...newSave('f', 'Hana', 'espresso'), staff: 'hacker' })!.staff).toBeNull();
   });
 });

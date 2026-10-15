@@ -16,14 +16,19 @@ import { PROFILES } from './logic/profiles';
 import { openCard } from './ui/card';
 import { openPlayer } from './ui/player';
 import { openMenu } from './ui/menuBoard';
-import { planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY, type DayPlan } from './logic/level1';
+import { planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY, LEVEL6_DAY, type DayPlan } from './logic/level1';
 import { TeaStation, newTeaBench, leilaLetter } from './ui/teaStation';
 import { teaNight } from './ui/teaNight';
+import { writeJobPost, swipeCVs, pickShortlist, gather, interview, interviewBoard, phoneCall, firstDay, welcomeCard, ROLE_SPOT, type HireCtx } from './ui/hiring';
+import { bedroom, member, candidatePortrait } from './ui/hireArt';
+import { candById, type Interview, type Role, type Candidate } from './logic/hiring';
+import type { Member } from './ui/room';
 import { BakeryStation, newBakeBench, crewNote } from './ui/bakeryStation';
 import { bakeNight, basketArt, BASKET } from './ui/bakeNight';
 import { crewNight } from './ui/crew';
 import { CREW, isMouse, type MouseWho } from './logic/outfits';
-import { biscuit, grandma } from './art/cast.js';
+import { biscuit, grandma, customer } from './art/cast.js';
+const customerSvg = (m: Member) => `${customer(m.g, m.v)}${m.extra ?? ''}`;
 import { music } from './audio/music';
 
 let ext: Exterior | null = null;
@@ -43,6 +48,7 @@ const H = (text: string, state = 'city'): Line => ({ who: heroId(), name: S.name
 const M = (text: string, state = 'idle'): Line => ({ who: 'moka', name: S.names.moka, state, text, right: true, vars: petVars('moka') });
 const G = (text: string, state = 'tea'): Line => ({ who: 'grandma', name: S.names.grandma, state, text, right: true, vars: petVars('grandma') });
 const NARR = (text: string): Line => ({ who: 'narr', text });
+const C = (k: Candidate, text: string, state = 'idle'): Line => ({ name: k.name, text, right: true, svg: candidatePortrait(k, state) });
 const persist = () => save(S);
 
 // chemin du héros dans la rue : bout de la rue → trottoir → porte du café
@@ -58,7 +64,7 @@ export async function run() {
     const saved = load();
     // raccourci de test : ?level=5 lance directement ce niveau (héroïne par défaut), sans écran titre
     const jump = Number(new URLSearchParams(location.search).get('level'));
-    if (jump >= 1 && jump <= 5 && !jumped) {
+    if (jump >= 1 && jump <= 6 && !jumped) {
       jumped = true;
       S = newSave('f', 'Hana', 'espresso');
       if (jump > 1) { S.level = jump; S.phase = 'morning'; S.nightsFed = 2; }
@@ -78,6 +84,7 @@ export async function run() {
     if (S.level === 3) await playLevel3();
     if (S.level === 4) await playLevel4();
     if (S.level === 5) await playLevel5();
+    if (S.level === 6) await playLevel6();
   }
 }
 
@@ -294,8 +301,111 @@ async function playLevel5() {
   }
   await levelReport({
     level: 5, name: S.name, served: S.totalServed, coins: S.coins, stats: S.stats, gained: [],
-    next: 'Next: Level 6 · Help wanted! Interview and hire a new team member 👋 (coming soon)', button: 'Back to the title'
+    next: 'Next: Level 6 · Help wanted! Interview and hire a new team member 👋', button: 'Start Level 6 ▶'
   });
+  S.level = 6; S.day = 1; S.phase = 'morning'; S.stats = newStats(); S.totalServed = 0; persist();
+}
+
+/* ---------- Niveau 6 : on recrute ! ---------- */
+// L'annonce le soir dans sa chambre → tri des CV avec les animaux → 3 entretiens → réunion du soir → appel → premier jour.
+async function playLevel6() {
+  setHeroName(S.name);
+  const ctx: HireCtx = {
+    hero: S.hero, name: S.name, heroVars: heroVars(), mokaName: S.names.moka, mokaVars: petVars('moka'), dogName: S.names.biscuit, dogVars: petVars('biscuit'),
+    grandmaName: S.names.grandma, grandmaVars: petVars('grandma'), varsOf: w => petVars(w)
+  };
+  const R = (w: typeof CREW[number], text: string, state = 'idle'): Line => ({ who: w, name: PROFILES[w].defaultName, state, text, right: true, vars: petVars(w) });
+  const B = (text: string, state = 'wag'): Line => ({ who: 'biscuit', name: S.names.biscuit, state, text, right: true, vars: petVars('biscuit') });
+  const cafeRoom = (mode: 'day' | 'night', grandma: false | 'stand' = false) => {
+    const r = new Room({
+      hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode, dog: 'patrol', day: 1, goal: 0, coins: S.coins,
+      recipes: [], maxSeated: 0, customers: false, grandma, juiceOpen: true, bakeryOpen: true, teaOpen: true, mouseHole: 'door',
+      outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
+    });
+    r.onCard = who => openCharCard(who, r); r.onMusic = () => openPlayer();
+    return r;
+  };
+
+  // 1. le soir, dans sa chambre : écrire l'annonce
+  let bed!: HTMLElement;
+  await wipe(() => { clear(); pixel(false); setExterior(null); bed = h(`<div class="screen bedroom">${bedroom(S.hero, '')}</div>`); ui().appendChild(bed); });
+  await talk([
+    H('Home at last… That "Help wanted" sign was in the café window all day.'),
+    H('Time to write a real job post. Where is my laptop… there!')
+  ]);
+  bed.insertAdjacentHTML('beforeend', '<div class="hint"><span>Tap the <b>laptop</b> on the desk</span></div>');
+  await new Promise<void>(r => bed.querySelector('#laptop')!.addEventListener('click', () => r(), { once: true }));
+  bed.querySelector('.hint')?.remove();
+  const post = await writeJobPost();
+  await talk([
+    H('Posted! Now we wait and see who answers…'),
+    M('(from the bed, eyes closed) Hmph. Did you write "must respect the cat"?', 'sleep'),
+    H("…I'll add it next time.")
+  ]);
+
+  // 2. le lendemain matin, café fermé : tout le monde autour de l'ordinateur, une douceur chacun
+  let room!: Room;
+  await wipe(() => { bed.remove(); room = cafeRoom('day'); });
+  await talk([NARR('The next morning, before opening. The café is still closed…'), H('Six people applied! Everyone, come and help me choose ♡', S.uniform)]);
+  room.setHole('open'); music.sfx('squeak');
+  let ungather = await gather(room, ctx);
+  room.setHole('door');
+  music.sfx('twinkle');
+  await talk([
+    H(`A sweet for everyone: a fish cookie for ${S.names.moka}, a bone biscuit for ${S.names.biscuit}, lemon cake for the Crew.`, S.uniform),
+    R('captain', 'The Crumb Crew, reporting for CV duty! *munch*', 'cheer'),
+    B('I will sniff… I mean, READ every one! Wouf!'),
+    M('And I will judge. With my mouth full. As always.', 'munch')
+  ]);
+  const loved = await swipeCVs(post, ctx);
+  await talk([H(loved.size ? `${loved.size} CV${loved.size > 1 ? 's' : ''} we loved! Now… only three interviews this afternoon.` : 'Hmm, we did not love any… let\'s choose three anyway!', S.uniform)]);
+  const short = await pickShortlist(loved, post);
+  const names = short.map(id => candById(id).name);
+  await talk([
+    H(`I'll call ${names[0]}, ${names[1]} and ${names[2]}!`, S.uniform),
+    R('captain', 'Crew! Back in the wall before the guests arrive. Not one squeak!', 'cheer')
+  ]);
+  room.setHole('open'); await ungather(); await sleep(300); room.setHole('door');
+
+  // 3. l'après-midi : les entretiens (le héros sert café et biscuits)
+  await talk([NARR('That afternoon, the café closes early for the interviews.')]);
+  const views: Interview[] = [];
+  for (let i = 0; i < short.length; i++) {
+    views.push(await interview(room, candById(short[i]), ctx, i));
+    if (i < short.length - 1) await talk([NARR('A few minutes later, the door bell rings again…')]);
+  }
+  await room.heroHome();
+
+  // 4. le soir : le tableau des entretiens, avec toute l'équipe autour de la table
+  await wipe(() => { room.destroy(); room = cafeRoom('night'); });
+  music.setMood('night');
+  room.el.querySelector('rect.mn.tint')?.setAttribute('opacity', '.45');
+  ungather = await gather(room, ctx);
+  await talk([
+    NARR('That evening, everyone gathers around the table again, with tea and the last cookies.'),
+    H('I pinned everything on a board: each CV, every question, every answer. Let\'s look together.', 'city')
+  ]);
+  const id = await interviewBoard(views, post);
+  const hire = candById(id);
+  // 5. le coup de fil, et la journée se termine
+  const pay = await phoneCall(hire, post, ctx);
+  S.staff = id; persist();
+  await talk([R('nibbles', `${hire.name} is coming tomorrow! …They can\'t hear us, right?`, 'cheer'), M('Nobody can hear you. Except one person. Unfortunately.', 'munch')]);
+  await ungather();
+  await talk([NARR('The lights go out one by one. Tomorrow, the café has a new team member ♡')]);
+  music.setMood('day');
+
+  // 6. le lendemain : visite du café avant les clients, choix du poste, et on ouvre ensemble
+  await wipe(() => { room.destroy(); room = cafeRoom('day'); });
+  const role = await firstDay(room, hire, ctx);
+  room.destroy();
+  const result = await juiceService(LEVEL6_DAY, `First day with <b>${hire.name}</b>! Every <b>${ROLE_SPOT[role].label}</b> order is theirs. You take care of everything else.`, undefined, true, true, { role, name: hire.name, m: member(hire) });
+  S.coins = result.coins; S.totalServed += result.served;
+  result.room.tip(null);
+  await talk([H(`We did it! ${hire.name}, you were amazing today.`, S.uniform), C(hire, 'Thank you! Same time tomorrow? I can\'t wait ♡', 'coffee')]);
+  result.room.destroy();
+  S.phase = 'done'; persist();
+  await welcomeCard(hire, pay, post, S.name, role, result.served, result.helped);
   await wipe(() => { clear(); pixel(false); });
 }
 
@@ -450,7 +560,7 @@ function trackStats(room: Room) {
 }
 
 /** Une journée café + bar à jus (niveaux 2 et 3). `setup` ajoute les règles propres au niveau. */
-async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void, bakery = false, tea = false): Promise<{ room: Room; served: number; earned: number; coins: number }> {
+async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void, bakery = false, tea = false, helper?: { role: Role; name: string; m: Member }): Promise<{ room: Room; served: number; earned: number; coins: number; helped: number }> {
   const start = S.coins;
   const room = new Room({
     hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: plan.goal, coins: S.coins,
@@ -495,9 +605,23 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
     ts.onClose = () => { station = null; room.drawHud(); };
     station = ts;
   };
+  // niveau 6 : la nouvelle recrue s'occupe de toutes les commandes de son poste
+  let helped = 0, helpTimer = 0;
+  if (helper) {
+    const spot = ROLE_SPOT[helper.role];
+    const who = room.stageRef.add(`<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="idle" overflow="visible">${customerSvg(helper.m)}</svg>`, spot.x, spot.y, { flipable: true });
+    const mine = (c: Cust) => helper.role === 'coffee' ? !c.recipe?.kind : c.recipe?.kind === (helper.role === 'pastry' ? 'pastry' : helper.role);
+    helpTimer = window.setInterval(() => {
+      const c = room.ordered().find(mine); if (!c) return;
+      const r = c.recipe!; room.serve(c.id); helped++;
+      music.sfx('bell'); room.fx(who.x, who.y - 210, `${helper.name}: ${r.name} ♡`, '#4f8a6a');
+      room.drawHud();
+    }, 6500);
+  }
   await new Promise<void>(resolve => { room.onEmpty = () => { station?.close(); resolve(); }; });
+  clearInterval(helpTimer);
   await sleep(600);
-  return { room, served: room.served, earned: room.coins - start, coins: room.coins };
+  return { room, served: room.served, earned: room.coins - start, coins: room.coins, helped };
 }
 
 /* ---------- Prologue ---------- */

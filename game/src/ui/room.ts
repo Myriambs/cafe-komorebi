@@ -15,7 +15,8 @@ import { music } from '../audio/music';
 
 const NS = 'http://www.w3.org/2000/svg';
 type PartyState = 'walking' | 'ready' | 'ordered' | 'served' | 'wantbook' | 'reading' | 'leaving';
-export interface Member { g: 'm' | 'f'; v: number }
+/** `extra` : accessoire dessiné par-dessus (lunettes, bonnet…) pour les candidats du niveau 6. */
+export interface Member { g: 'm' | 'f'; v: number; extra?: string }
 /** Un groupe de clients assis au même coin fauteuils. `table` = numéro du coin. */
 export interface Cust {
   id: number; members: Member[]; table: number; state: PartyState;
@@ -205,14 +206,14 @@ export class Room {
   private seatOf(spot: number, k: number) { return SEAT_ORDER[spot % 2][k]; }
   private seatPos(spot: number, k: number) { const t = SPOTS[spot], s = SEATS[this.seatOf(spot, k)]; return { x: t.cx + s.dx, y: t.cy + s.dy, s: s.s }; }
   private custSvg(m: Member, state: string) {
-    return `<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="${state}" overflow="visible">${customer(m.g, m.v)}</svg>`;
+    return `<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="${state}" overflow="visible">${customer(m.g, m.v)}${m.extra ?? ''}</svg>`;
   }
   /** Client assis : le corps s'enfonce dans le fauteuil, les jambes pliées passent devant le coussin. */
   private seat(spot: number, k: number, m: Member | null, state = 'sit') {
     const sk = this.seatOf(spot, k), slot = this.$(`seat-${spot}-${sk}`), legs = this.$(`legs-${spot}-${sk}`);
     if (!m) { slot.innerHTML = ''; legs.innerHTML = ''; return; }
     const p = this.seatPos(spot, k), w = 150 * p.s, hh = 195 * p.s, x = p.x - w / 2, y = p.y - 150 * p.s;
-    slot.innerHTML = `<svg class="nobubble" x="${x}" y="${y}" width="${w}" height="${hh}" viewBox="0 0 200 260" data-state="${state}" overflow="visible">${customer(m.g, m.v)}</svg>`;
+    slot.innerHTML = `<svg class="nobubble" x="${x}" y="${y}" width="${w}" height="${hh}" viewBox="0 0 200 260" data-state="${state}" overflow="visible">${customer(m.g, m.v)}${m.extra ?? ''}</svg>`;
     legs.innerHTML = `<svg x="${x}" y="${y}" width="${w}" height="${hh}" viewBox="0 0 200 260" overflow="visible">${custLegs(m.g, m.v)}</svg>`;
   }
 
@@ -490,6 +491,59 @@ export class Room {
     else if (a === 'card') this.onCard?.(el.dataset.who as Who);
   }
 
+  /* ---------- Invités pilotés par une scène (niveau 6 : entretiens, premier jour) ---------- */
+  /** Un invité entre par la porte et s'assoit à la place `k` du coin `spot`. */
+  async guestIn(m: Member, spot = 0, k = 0) {
+    const p = this.seatPos(spot, k);
+    const a = this.stage.add(this.custSvg(m, 'walk'), DOOR.x, DOOR.y + 10);
+    await this.stage.walk(a, [{ x: DOOR.x - 30, y: LANE }, { x: p.x, y: LANE }, { x: p.x, y: p.y - 12 }], 175);
+    this.stage.remove(a); this.seat(spot, k, m);
+  }
+  /** L'invité se lève et repart par la porte. */
+  async guestOut(m: Member, spot = 0, k = 0) {
+    const p = this.seatPos(spot, k);
+    this.seat(spot, k, null);
+    const a = this.stage.add(this.custSvg(m, 'walk'), p.x, p.y - 12);
+    await this.stage.walk(a, [{ x: p.x, y: LANE }, { x: DOOR.x - 30, y: LANE }, { x: DOOR.x, y: DOOR.y + 10 }], 175);
+    a.el.style.transition = 'opacity .5s'; a.el.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 500)); this.stage.remove(a);
+  }
+  /** Change l'expression d'un invité assis ('sit', 'sitcoffee'…). */
+  guestState(spot: number, k: number, state: string) { (this.$(`seat-${spot}-${this.seatOf(spot, k)}`).firstElementChild as SVGElement)?.setAttribute('data-state', state); }
+  /** Un invité entre et reste debout à (x, y) — renvoie l'acteur. */
+  async guestStand(m: Member, x: number, y: number) {
+    const a = this.stage.add(this.custSvg(m, 'walk'), DOOR.x, DOOR.y + 10, { flipable: true });
+    await this.stage.walk(a, [{ x: DOOR.x - 30, y: LANE }, { x, y }], 175);
+    (a.inner.firstElementChild as SVGElement).setAttribute('data-state', 'idle');
+    return a;
+  }
+  get seatAt() { return (spot: number, k: number) => this.seatPos(spot, k); }
+
+  /* ---------- Le héros sort de derrière le comptoir (niveau 6) ---------- */
+  private heroA: Actor | null = null;
+  /** Bout du comptoir, côté salle : là où le héros entre et sort. */
+  static readonly COUNTER_END = { x: 960, y: 500 };
+  /** Le héros quitte le comptoir et marche jusqu'à (x, y). `tray` : ce qu'il porte (svg dans le repère 200 × 260). */
+  async heroWalk(x: number, y: number, via: { x: number; y: number }[] = [], tray = '') {
+    if (!this.heroA) {
+      (this.$('heroSvg') as SVGElement).style.display = 'none';
+      const e = Room.COUNTER_END;
+      this.heroA = this.stage.add(`<svg x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="${this.o.uniform}" style="${this.o.uniformVars ?? ''}" overflow="visible">${DRAW[this.o.hero === 'f' ? 'heroF' : 'heroM']()}<g class="heroTray"></g></svg>`, e.x, e.y, { flipable: true });
+    }
+    this.heroCarry(tray);
+    await this.stage.walk(this.heroA, [...via, { x, y }], 190);
+  }
+  heroCarry(tray: string) { const g = this.heroA?.el.querySelector('.heroTray'); if (g) g.innerHTML = tray; }
+  heroFace(dir: 1 | -1) { if (this.heroA) { this.heroA.flip = dir; this.heroA.el.setAttribute('transform', this.heroA.el.getAttribute('transform')!.replace(/scale\((-?[\d.]+) /, (_, k) => `scale(${Math.abs(+k) * dir} `)); } }
+  /** Le héros retourne derrière le comptoir. */
+  async heroHome() {
+    if (!this.heroA) return;
+    const e = Room.COUNTER_END;
+    await this.stage.walk(this.heroA, [{ x: this.heroA.x, y: LANE }, e], 190);
+    this.stage.remove(this.heroA); this.heroA = null;
+    (this.$('heroSvg') as SVGElement).style.display = '';
+  }
+
   /* ---------- Moka pilotée par une scène (niveau 3) ---------- */
   get moka() { return this.mokaA; }
   get stageRef() { return this.stage; }
@@ -511,7 +565,7 @@ export class Room {
     await wait(400);
   }
   /** Niveau 3 : une souris pousse la porte, voit du monde, prend peur et rentre en courant. */
-  async mouseDash() {
+  async mouseDash(after: DoorKind = 'hidden') {
     const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
     this.setHole('open');
     const a = this.stage.add(`<svg x="-40" y="-101" width="80" height="104" viewBox="0 0 200 260" data-state="walk" overflow="visible">${crumbMouse('captain')}</svg>`, HOLE.x - 4, HOLE.y + 4, { flipable: true, base: 0.8 });
@@ -525,7 +579,7 @@ export class Room {
     this.stage.remove(a);
     this.setHole('ajar');
     await wait(300);
-    this.setHole('hidden');
+    this.setHole(after);
   }
 
   /** Câlin de Moka (bouton de sa carte). */

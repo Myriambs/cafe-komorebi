@@ -19,6 +19,8 @@ export interface SaveData {
   level: number;
   /** Statistiques du niveau en cours, pour le bilan de fin de niveau. */
   stats: LevelStats;
+  /** Niveau 6 : la personne embauchée (id du candidat), sinon null. */
+  staff: string | null;
 }
 export interface LevelStats { drinks: Record<string, number>; delighted: number; books: number; tips: number }
 export const newStats = (): LevelStats => ({ drinks: {}, delighted: 0, books: 0, tips: 0 });
@@ -29,7 +31,7 @@ const DEFAULT_NAMES = { moka: 'Moka', biscuit: 'Biscuit', grandma: 'Grandma' };
 const DEFAULT_OUTFITS = { moka: 'concierge', grandma: 'shutter', biscuit: 'red', captain: 'red', dusty: 'cloud', bubbles: 'sky', nibbles: 'sunflower' };
 
 export function newSave(hero: 'm' | 'f', name: string, uniform: string): SaveData {
-  return { v: 1, hero, name: cleanName(name, hero), uniform: OUTFIT_IDS.hero.includes(uniform) ? uniform : 'espresso', names: { ...DEFAULT_NAMES }, outfits: { ...DEFAULT_OUTFITS }, owned: [], day: 1, phase: 'prologue', coins: 20, totalServed: 0, nightsFed: 0, seenTransform: false, level: 1, stats: newStats() };
+  return { v: 1, hero, name: cleanName(name, hero), uniform: OUTFIT_IDS.hero.includes(uniform) ? uniform : 'espresso', names: { ...DEFAULT_NAMES }, outfits: { ...DEFAULT_OUTFITS }, owned: [], day: 1, phase: 'prologue', coins: 20, totalServed: 0, nightsFed: 0, seenTransform: false, level: 1, stats: newStats(), staff: null };
 }
 
 /** Nom d'un compagnon : lettres, chiffres, espaces, 12 caractères au plus. */
@@ -80,8 +82,9 @@ export function validate(raw: unknown): SaveData | null {
     totalServed: int(r.totalServed, 0, 1e5, 0),
     nightsFed: int(r.nightsFed, 0, 3, 0),
     seenTransform: r.seenTransform === true,
-    level: int(r.level, 1, 5, 1),
-    stats: cleanStats(r.stats)
+    level: int(r.level, 1, 6, 1),
+    stats: cleanStats(r.stats),
+    staff: typeof r.staff === 'string' && ['yuki', 'sami', 'lina', 'marco', 'noor', 'kenji'].includes(r.staff) ? r.staff : null
   };
 }
 

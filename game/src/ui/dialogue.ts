@@ -2,7 +2,8 @@
 import { ui, h, charSvg, type CharId } from './dom';
 import { pixelPortrait } from '../pixel/portraits';
 
-export interface Line { who?: CharId | 'narr'; name?: string; state?: string; text: string; right?: boolean; vars?: string }
+/** `svg` : portrait sur mesure (candidats du niveau 6), à la place du dessin de `who`. */
+export interface Line { who?: CharId | 'narr'; name?: string; state?: string; text: string; right?: boolean; vars?: string; svg?: string }
 
 const PORTRAIT_BOX: Partial<Record<CharId, string>> = {
   moka: '30 70 140 140', biscuit: '30 66 140 140', pip: '35 95 130 130', kettle: '35 100 130 130',
@@ -13,7 +14,7 @@ export function say(line: Line, choices?: string[]): Promise<number> {
   return new Promise(resolve => {
     const narr = !line.who || line.who === 'narr';
     const box = h(`<div class="dlg ${narr ? 'narr' : ''} ${line.right ? 'right' : ''}">
-      ${narr ? '' : `<div class="portrait">${pixelPortrait(line.who!, line.state) ? `<img class="pxp" alt="" src="${pixelPortrait(line.who!, line.state)}">` : charSvg(line.who as CharId, line.state ?? 'idle', line.vars ? `style="${line.vars}"` : '', PORTRAIT_BOX[line.who as CharId] ?? '35 20 130 130')}</div>`}
+      ${narr ? '' : `<div class="portrait">${line.svg ? line.svg : pixelPortrait(line.who!, line.state) ? `<img class="pxp" alt="" src="${pixelPortrait(line.who!, line.state)}">` : charSvg(line.who as CharId, line.state ?? 'idle', line.vars ? `style="${line.vars}"` : '', PORTRAIT_BOX[line.who as CharId] ?? '35 20 130 130')}</div>`}
       <div>${narr ? '' : `<span class="name">${line.name ?? ''}</span>`}<div class="text"></div><div class="choices"></div></div>
       <span class="more">${choices ? '' : 'click ▶'}</span></div>`);
     ui().appendChild(box);

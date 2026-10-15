@@ -32,3 +32,6 @@ export const LEVEL4_DAY: DayPlan = { day: 1, goal: 4, recipes: ['croissant', 'me
 
 /** Niveau 5 : le salon de thé — thés de Leila, gâteaux en parts et biscuits glacés (journée courte). */
 export const LEVEL5_DAY: DayPlan = { day: 1, goal: 4, recipes: ['mintTea', 'karak', 'greenTea', 'cookies', 'lemonCake', 'chocCake', 'chamomile', 'blackTea'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };
+
+/** Niveau 6 : premier jour avec la nouvelle recrue — un peu de tout, elle s'occupe de son poste. */
+export const LEVEL6_DAY: DayPlan = { day: 1, goal: 5, recipes: ['latte', 'croissant', 'mintTea', 'orangeJuice', 'cinnamon', 'cappuccino', 'lemonCake', 'lemonade'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };
