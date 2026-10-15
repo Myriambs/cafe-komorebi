@@ -6,6 +6,8 @@ import type { Who } from '../logic/outfits';
 import { DRAW, h, ui } from './dom';
 import { Stage, type Actor } from './actors';
 import { recipeById, type Recipe } from '../logic/recipes';
+import { pickBooks, readingQuote, type Book } from '../logic/books';
+import type { DoorKind } from './roomArt.js';
 import { tickPatience, hearts, outcome, payment, type Outcome } from '../logic/service';
 import { music } from '../audio/music';
 
@@ -18,6 +20,8 @@ export interface Cust {
   recipe?: Recipe; qty: number; servedCups: number; pay: number; patience: number;
   /** Après le café, certains clients empruntent un livre ou un magazine et restent un moment. */
   want?: 'book' | 'magazine'; readT?: number;
+  /** Le livre (ou magazine) de chaque personne du groupe. */
+  books?: Book[];
 }
 
 export const SPOTS = [{ cx: 780, cy: 610 }, { cx: 1120, cy: 610 }, { cx: 730, cy: 805 }, { cx: 1110, cy: 810 }];
@@ -30,7 +34,8 @@ const CUSHION = { x: 1334, y: 502 };
 const LANE = 500; // couloir derrière les fauteuils
 const scaleAt = (y: number) => 0.8 + (y - DOOR.y) / 900 * 0.45;
 const CHAT = ['haha!', '♪', 'so cozy…', '☕?', '♡', 'really?!', 'mmm…', '✨', 'look!', 'same!'];
-const READ = ['*sip*', 'mmm…', '♪', 'so cozy…', '*page turn*', '♡'];
+/** Devant la porte secrète : là où Moka monte la garde. */
+const DOOR_GUARD = { x: 1426, y: 420 };
 
 export interface RoomOpts {
   hero: 'm' | 'f'; uniform: string; uniformVars?: string; mode: 'day' | 'sunset' | 'night';
@@ -41,8 +46,8 @@ export interface RoomOpts {
   grandma?: boolean | 'stand';
   /** Niveau 2 : le bar à jus est ouvert. */
   juiceOpen?: boolean;
-  /** Niveau 3 : trou de souris dans le mur (« hole »), puis la petite porte de la Crumb Crew (« door »). */
-  mouseHole?: 'hole' | 'door';
+  /** La porte secrète de la Crumb Crew (bas du mur de droite) : cachée jusqu'au niveau 3, puis entrouverte, ouverte, et enfin la petite porte peinte. */
+  mouseHole?: DoorKind;
 }
 
 export class Room {
@@ -78,7 +83,7 @@ export class Room {
     this.spawning = o.customers;
     const ov = o.outfitVars ?? {};
     this.el = h(`<div class="screen room" data-mode="${o.mode}"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet"><g class="art">
-      ${shell()}${o.mouseHole ? mouseHole(o.mouseHole) : ''}${lamps()}${backWall()}${stationArt(o.juiceOpen)}
+      ${shell()}${mouseHole(o.mouseHole ?? 'hidden')}${lamps()}${backWall()}${stationArt(o.juiceOpen)}
       <g transform="translate(820 400) scale(.88) translate(-820 -400)">${sofaBack()}
       ${o.grandma !== true && o.grandma !== undefined ? '' : `<g class="hit" data-act="card" data-who="grandma"><g transform="rotate(-5 820 380)"><svg id="grandmaSvg" x="745" y="200" width="150" height="195" viewBox="0 0 200 260" data-state="read" style="${ov.grandma ?? ''}" overflow="visible">${grandma()}</svg></g></g>`}
       ${sofaFront()}${o.grandma !== true && o.grandma !== undefined ? grandmaLap(false) : `<g class="hit" data-act="card" data-who="grandma">${grandmaLap()}</g>`}</g>${recordPlayer()}
@@ -90,7 +95,7 @@ export class Room {
       <g class="md ms">${[[1010, 470, 120, 34], [1120, 520, 90, 26], [880, 520, 70, 20]].map(([x, y, rx, ry], i) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#sunPatch)" style="animation:dapple ${5 + i}s ease-in-out infinite;transform-origin:${x}px ${y}px"/>`).join('')}</g>
       <ellipse cx="1330" cy="512" rx="62" ry="18" fill="#c99a78" ${L(2)}/><ellipse cx="1330" cy="502" rx="56" ry="16" fill="${P.coral}" ${L(2)}/>
       <g id="depth">${SPOTS.map((t, i) => { const place = (k: number) => { const s = SEATS[k], x = t.cx + s.dx, y = t.cy + s.dy; return `${chairBack(x, y, s.s, s.dir)}${chairSeat(x, y, s.s, s.dir)}<g id="seat-${i}-${k}"></g><g id="legs-${i}-${k}"></g>`; };
-        return `<g data-y="${t.cy}">${place(2)}${tableCloth(t.cx, t.cy + 18)}${place(0)}${place(1)}</g>`; }).join('')}</g>
+        return `<g data-y="${t.cy - 46}">${place(2)}</g><g data-y="${t.cy + 10}">${tableCloth(t.cx, t.cy + 18)}${place(0)}${place(1)}</g>`; }).join('')}</g>
       <g id="extra"></g>
       ${plant(118, 892)}
       <rect class="ms tint" x="0" y="0" width="1600" height="900" fill="#f4bfa0"/>
@@ -257,12 +262,17 @@ export class Room {
   }
 
   private drawBubble(c: Cust) {
-    const p0 = this.seatPos(c.table, 0), x = p0.x - 40, y = p0.y - 124 * p0.s - 104, W = 176, HH = 84;
+    const p0 = this.seatPos(c.table, 0), W = 176, HH = 84;
+    // coin du fond à droite : la bulle s'ouvre vers la gauche, pour ne pas cacher Moka sur son coussin
+    const mirror = c.table === 1, tailAt = (w: number, hh: number) => mirror
+      ? `H${x + w - 30} L${x + w - 26} ${y + hh + 16} L${x + w - 46} ${y + hh}`
+      : `H${x + 46} L${x + 26} ${y + hh + 16} L${x + 30} ${y + hh}`;
+    let x = mirror ? p0.x + 40 - W : p0.x - 40, y = p0.y - 124 * p0.s - 104;
     this.$('bub' + c.id)?.remove();
     if (c.state === 'walking' || c.state === 'leaving') return;
     const g = document.createElementNS(NS, 'g');
     g.id = 'bub' + c.id;
-    const shape = `<path d="M${x + 14} ${y} H${x + W - 14} A14 14 0 0 1 ${x + W} ${y + 14} V${y + HH - 14} A14 14 0 0 1 ${x + W - 14} ${y + HH} H${x + 46} L${x + 26} ${y + HH + 16} L${x + 30} ${y + HH} H${x + 14} A14 14 0 0 1 ${x} ${y + HH - 14} V${y + 14} A14 14 0 0 1 ${x + 14} ${y}Z" fill="#fff" stroke="${P.ink}" stroke-width="2.5"/>`;
+    const shape = `<path d="M${x + 14} ${y} H${x + W - 14} A14 14 0 0 1 ${x + W} ${y + 14} V${y + HH - 14} A14 14 0 0 1 ${x + W - 14} ${y + HH} ${tailAt(W, HH)} H${x + 14} A14 14 0 0 1 ${x} ${y + HH - 14} V${y + 14} A14 14 0 0 1 ${x + 14} ${y}Z" fill="#fff" stroke="${P.ink}" stroke-width="2.5"/>`;
     const num = `<circle cx="${x + W - 6}" cy="${y + 4}" r="15" fill="${P.ink}"/><text x="${x + W - 6}" y="${y + 10}" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="15" fill="#fdf5e8">${c.table + 1}</text>`;
     const heartsRow = [0, 1, 2, 3, 4].map(k => `<g id="h${c.id}-${k}" opacity="${k < hearts(c.patience) ? 1 : .25}">${heart(x + 44 + k * 22, y + 62, .75)}</g>`).join('');
     const txt = (tx: number, s: string, size = 18, anchor = 'middle') => `<text x="${tx}" y="${y + 36}" text-anchor="${anchor}" font-family="Nunito,sans-serif" font-weight="800" font-size="${size}" fill="${P.ink}">${s}</text>`;
@@ -288,8 +298,22 @@ export class Room {
       g.innerHTML = `<g class="bounce">${shape}${icon}${txt(x + 112, c.want === 'book' ? 'A book,' : 'A magazine,', 15)}<text x="${x + 112}" y="${y + 58}" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="15" fill="${P.ink}">please? ♡</text>${num}</g>`;
     } else if (c.state === 'reading') {
       const f = Math.max(0, Math.min(1, 1 - (c.readT ?? 0) / 20));
-      g.innerHTML = `${shape}<text x="${x + 30}" y="${y + 40}" text-anchor="middle" font-size="24">${c.want === 'book' ? '📖' : '📰'}</text>${txt(x + 108, 'Reading…', 16)}
-        <rect x="${x + 56}" y="${y + 52}" width="104" height="10" rx="5" fill="#f3e6d3" stroke="${P.ink}" stroke-width="1.5"/><rect x="${x + 57}" y="${y + 53}" width="${102 * f}" height="8" rx="4" fill="#8fb39a"/>${num}`;
+      const q = readingQuote(c.books ?? [], 20 - (c.readT ?? 0)), RH = 96;
+      // tables du devant : la bulle se met sur le côté (sinon elle cache les clients des tables du fond)
+      const front = c.table >= 2, side = c.table % 2 ? 1 : -1, RW = front ? 290 : 330;
+      const head = p0.y - 120 * p0.s;
+      if (front) { x = side < 0 ? p0.x - 76 - RW : p0.x + 76; y = head - RH / 2 - 10; }
+      else if (mirror) x = p0.x + 40 - RW;
+      const tail = !front ? tailAt(RW, RH) : `H${x}`;
+      const sideTail = !front ? '' : side < 0
+        ? `<path d="M${x + RW - 1} ${y + 38} L${x + RW + 22} ${y + 56} L${x + RW - 1} ${y + 60}Z" fill="#fff" stroke="${P.ink}" stroke-width="2.5" stroke-linejoin="round"/><rect x="${x + RW - 4}" y="${y + 40}" width="5" height="18" fill="#fff"/>`
+        : `<path d="M${x + 1} ${y + 38} L${x - 22} ${y + 56} L${x + 1} ${y + 60}Z" fill="#fff" stroke="${P.ink}" stroke-width="2.5" stroke-linejoin="round"/><rect x="${x - 1}" y="${y + 40}" width="5" height="18" fill="#fff"/>`;
+      const rshape = `<path d="M${x + 14} ${y} H${x + RW - 14} A14 14 0 0 1 ${x + RW} ${y + 14} V${y + RH - 14} A14 14 0 0 1 ${x + RW - 14} ${y + RH} ${tail} H${x + 14} A14 14 0 0 1 ${x} ${y + RH - 14} V${y + 14} A14 14 0 0 1 ${x + 14} ${y}Z" fill="#fff" stroke="${P.ink}" stroke-width="2.5"/>${sideTail}`;
+      if (!front) g.setAttribute('transform', `translate(0 ${HH - RH})`);
+      g.innerHTML = `${rshape}<g transform="translate(${x + 34} ${y + 44}) scale(.62)">${coverIcon(q.book)}</g>
+        <foreignObject x="${x + 62}" y="${y + 8}" width="${RW - 76}" height="58"><div xmlns="http://www.w3.org/1999/xhtml" style="font:800 14.5px/1.25 Nunito,sans-serif;color:#3b2838;display:flex;align-items:center;height:58px">“${q.text}”</div></foreignObject>
+        <rect x="${x + 62}" y="${y + 72}" width="${RW - 90}" height="10" rx="5" fill="#f3e6d3" stroke="${P.ink}" stroke-width="1.5"/><rect x="${x + 63}" y="${y + 73}" width="${(RW - 92) * f}" height="8" rx="4" fill="#8fb39a"/>
+        <circle cx="${x + RW - 6}" cy="${y + 4}" r="15" fill="${P.ink}"/><text x="${x + RW - 6}" y="${y + 10}" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="15" fill="#fdf5e8">${c.table + 1}</text>`;
     } else {
       g.innerHTML = `<g class="popin">${shape}${heart(x + 40, y + 34, 1.4)}${txt(x + 104, 'Thanks!')}${num}</g>`;
     }
@@ -302,10 +326,10 @@ export class Room {
 
   /** Les groupes bavardent : petites bulles quelques secondes. */
   private chat() {
-    const groups = this.custs.filter(c => (c.members.length > 1 || c.state === 'reading') && c.state !== 'walking' && c.state !== 'leaving');
+    const groups = this.custs.filter(c => c.members.length > 1 && c.state !== 'walking' && c.state !== 'leaving' && c.state !== 'reading');
     if (!groups.length) return;
     const c = groups[Math.floor(Math.random() * groups.length)], k = Math.floor(Math.random() * c.members.length);
-    const p = this.seatPos(c.table, k), txt = c.state === 'reading' ? READ[Math.floor(Math.random() * READ.length)] : CHAT[Math.floor(Math.random() * CHAT.length)];
+    const p = this.seatPos(c.table, k), txt = CHAT[Math.floor(Math.random() * CHAT.length)];
     const left = this.seatOf(c.table, k) === 0, x = p.x + (left ? -54 : 54), y = p.y - 150 * p.s, w = txt.length * 9 + 26;
     const g = document.createElementNS(NS, 'g');
     g.innerHTML = `<g class="popin"><rect x="${x - w / 2}" y="${y - 20}" width="${w}" height="32" rx="16" fill="#fffaf2" fill-opacity=".96" stroke="${P.ink}" stroke-width="2"/><circle cx="${x + (left ? 14 : -14)}" cy="${y + 18}" r="4" fill="#fffaf2" stroke="${P.ink}" stroke-width="1.6"/>
@@ -358,34 +382,36 @@ export class Room {
   /** On apporte le livre : le groupe lit et sirote son café une vingtaine de secondes. */
   private giveBook(c: Cust) {
     if (c.state !== 'wantbook') return;
-    c.state = 'reading'; c.readT = 20; this.onBook?.(c);
+    c.state = 'reading'; c.readT = 20; c.books = pickBooks(c.want ?? 'book', c.members.length); this.onBook?.(c);
     music.sfx('pour');
     const t = SPOTS[c.table];
     this.fx(t.cx, t.cy - 300, c.want === 'book' ? 'Here is your book ♪' : 'Here is your magazine ♪', '#6e5040');
     c.members.forEach((_, k) => this.addBook(c, k));
     this.drawBubble(c);
   }
-  /** Le client tient le livre à deux mains, tourne les pages et boit une gorgée de temps en temps. */
+  /**
+   * Le client lit : la couverture (titre, couleur) est tournée vers nous, les pages vers lui.
+   * Une main tient le livre, l'autre boit une gorgée de café ou de jus ; pour tourner la page,
+   * il repose sa tasse et prend le coin du livre à deux mains.
+   */
   private addBook(c: Cust, k: number) {
     const slot = this.$(`seat-${c.table}-${this.seatOf(c.table, k)}`), p = this.seatPos(c.table, k);
     (slot.firstElementChild as SVGElement | null)?.setAttribute('data-state', 'sit');
-    const s = p.s * 1.35, delay = -(k * 1.7 + c.id * 0.9) % 7;
-    const cols = ['#e86a5f', '#7fa8d8', '#8fb39a', '#c7a6e6', '#f2c46a'], col = cols[(c.id + k) % cols.length];
-    const x = p.x, y = p.y - 46 * p.s;
-    const glow = `<ellipse cx="0" cy="8" rx="40" ry="30" fill="#fff3b0" opacity=".55"/>`;
-    const hands = `<circle cx="-25" cy="10" r="5.5" fill="#f1cfb4" ${L(1.6)}/><circle cx="25" cy="10" r="5.5" fill="#f1cfb4" ${L(1.6)}/>`;
-    const cup = `<g class="sipCup" style="animation-delay:${delay}s"><path d="M24 -2 L38 -2 L36 12 L26 12Z" fill="#fffaf2" ${L(1.6)}/><path d="M38 1 q5 1 2 7" fill="none" ${L(1.6)}/><ellipse cx="31" cy="-1" rx="6" ry="1.6" fill="#a8743f"/></g>`;
+    const b = c.books![k], s = p.s * 1.3, delay = (-(k * 2.3 + c.id * 1.1) % 9).toFixed(2);
+    const x = p.x, y = p.y - 46 * p.s, skin = '#f1cfb4';
+    const juice = c.recipe?.kind === 'juice';
+    const cup = juice
+      ? `<path d="M26 -4 L38 -4 L36 14 L28 14Z" fill="#eef7fa" ${L(1.5)}/><path d="M27 2 L37 2 L35.6 13 L28.4 13Z" fill="#f5a83a"/><path d="M34 -10 L32 2" stroke="#e86a5f" stroke-width="2" stroke-linecap="round"/>`
+      : `<path d="M25 -1 L39 -1 L37 13 L27 13Z" fill="#fffaf2" ${L(1.5)}/><path d="M39 2 q5 1 2 7" fill="none" ${L(1.5)}/><ellipse cx="32" cy="0" rx="6.4" ry="1.6" fill="#a8743f"/>`;
+    const hand = (hx: number, hy: number) => `<circle cx="${hx}" cy="${hy}" r="5.2" fill="${skin}" ${L(1.5)}/>`;
     const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'readBook popin');
-    g.innerHTML = c.want === 'book'
-      ? `<g transform="translate(${x} ${y}) scale(${s})">${glow}
-          <path d="M-24 -4 L0 2 L24 -4 L24 18 L0 24 L-24 18Z" fill="${col}" ${L(2)}/>
-          <path d="M-21 -6 Q-10 -10 0 -2 L0 20 Q-10 12 -21 16Z" fill="#fffaf2" ${L(1.5)}/><path d="M21 -6 Q10 -10 0 -2 L0 20 Q10 12 21 16Z" fill="#fffaf2" ${L(1.5)}/>
-          <path d="M-16 2 l10 2 M-16 7 l10 2 M6 4 l10 -2 M6 9 l10 -2" stroke="#c9b8a8" stroke-width="1.4"/>
-          <path class="pageFlip" style="animation-delay:${delay}s" d="M0 -2 Q10 -10 21 -6 L21 16 Q10 12 0 20Z" fill="#fffdf6" ${L(1.2)}/>
-          ${hands}${cup}</g>`
-      : `<g transform="translate(${x} ${y}) scale(${s})">${glow}<g transform="rotate(-6)"><rect x="-17" y="-14" width="34" height="40" rx="2" fill="${col}" ${L(2)}/><rect x="-12" y="-9" width="24" height="7" rx="1" fill="#fffaf2"/><circle cx="0" cy="10" r="8" fill="#fffaf2" opacity=".8"/><path d="M-12 21 l24 0" stroke="#fffaf2" stroke-width="2"/>
-          <path class="pageFlip" style="animation-delay:${delay}s" d="M0 -14 L17 -14 L17 26 L0 26Z" fill="#fdf1dd" ${L(1)}/></g>
-          <circle cx="-19" cy="12" r="5.5" fill="#f1cfb4" ${L(1.6)}/><circle cx="19" cy="12" r="5.5" fill="#f1cfb4" ${L(1.6)}/>${cup}</g>`;
+    g.innerHTML = `<g transform="translate(${x} ${y}) scale(${s})" style="--rd:${delay}s">
+        <ellipse cx="2" cy="4" rx="40" ry="30" fill="#fff3b0" opacity=".45"/>
+        ${b.kind === 'book' ? bookCover(b) : magazineCover(b)}
+        <path class="rdPage" d="M-6 -14 Q6 -27 22 -24 L22 -18 Q6 -21 -6 -12Z" fill="#fffdf6" ${L(1.1)}/>
+        ${hand(b.kind === 'book' ? -6 : 0, 21)}
+        <g class="rdCup">${cup}</g>
+        <g class="rdHandB">${hand(31, 12)}</g></g>`;
     slot.appendChild(g);
   }
 
@@ -447,15 +473,34 @@ export class Room {
   sayMoka(text: string | null) { this.mokaSay(text); }
   /** Moka reprend sa routine sur son coussin. */
   releaseMoka() { this.mokaBusy = 1; }
-  setHole(kind: 'hole' | 'door') { const g = this.$('mouseHole'); if (g) g.outerHTML = mouseHole(kind); }
-  /** Une petite tête de souris sort du trou, couine, puis disparaît (indice pendant le service). */
-  peekMouse() {
-    const g = document.createElementNS(NS, 'g');
-    g.innerHTML = `<g class="popin"><svg x="${HOLE.x - 22}" y="${HOLE.y - 52}" width="48" height="48" viewBox="40 30 120 120" data-state="idle" overflow="visible">${crumbMouse('captain')}</svg></g>`;
-    this.$('extra').appendChild(g);
+  setHole(kind: DoorKind) { const g = this.$('mouseHole'); if (g) g.outerHTML = mouseHole(kind); }
+  /** Une scène qui fait bouger Moka passe après ses accueils en cours (jamais deux marches à la fois). */
+  withMoka(fn: () => Promise<void>) { const run = this.mokaQueue.then(fn); this.mokaQueue = run.catch(() => undefined); return run; }
+  get doorGuard() { return DOOR_GUARD; }
+  /** Fin du niveau 2 : la porte secrète s'entrouvre, deux petits yeux brillent… puis elle se referme. */
+  async doorPeek() {
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+    this.setHole('ajar'); music.sfx('squeak');
+    await wait(2600);
+    this.setHole('hidden');
+    await wait(400);
+  }
+  /** Niveau 3 : une souris pousse la porte, voit du monde, prend peur et rentre en courant. */
+  async mouseDash() {
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+    this.setHole('open');
+    const a = this.stage.add(`<svg x="-40" y="-101" width="80" height="104" viewBox="0 0 200 260" data-state="walk" overflow="visible">${crumbMouse('captain')}</svg>`, HOLE.x - 4, HOLE.y + 4, { flipable: true, base: 0.8 });
+    await this.stage.walk(a, [{ x: HOLE.x - 34, y: HOLE.y + 30 }], 90);
+    (a.inner.firstElementChild as SVGElement).setAttribute('data-state', 'idle');
     music.sfx('squeak');
-    this.fx(HOLE.x + 60, HOLE.y - 80, 'squeak!', '#8a6a3c');
-    setTimeout(() => g.remove(), 2600);
+    this.fx(HOLE.x - 40, HOLE.y - 70, '!!', '#c0506a');
+    await wait(700);
+    (a.inner.firstElementChild as SVGElement).setAttribute('data-state', 'walk');
+    await this.stage.walk(a, [{ x: HOLE.x - 4, y: HOLE.y + 4 }], 320);
+    this.stage.remove(a);
+    this.setHole('ajar');
+    await wait(300);
+    this.setHole('hidden');
   }
 
   /** Câlin de Moka (bouton de sa carte). */
@@ -463,4 +508,58 @@ export class Room {
 
   hide(v: boolean) { this.el.style.visibility = v ? 'hidden' : 'visible'; }
   destroy() { clearInterval(this.timer); clearInterval(this.chatTimer); this.stage.destroy(); this.el.remove(); }
+}
+
+/* ---------- Couvertures des livres et magazines (tournées vers le joueur) ---------- */
+/** Petit dessin de couverture centré sur (0, 0), environ 14 unités de large. */
+function iconArt(b: Book, c = b.ink) {
+  const st = `stroke="${c}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+  switch (b.icon) {
+    case 'moon': return `<path d="M3 -6 A6.5 6.5 0 1 0 3 6 A5 5 0 1 1 3 -6Z" fill="${c}"/><circle cx="6" cy="-4" r="1" fill="${c}"/><circle cx="7.5" cy="2" r=".8" fill="${c}"/>`;
+    case 'glass': return `<circle cx="-1.5" cy="-1.5" r="4.6" ${st}/><path d="M2 2 L6.5 6.5" ${st} stroke-width="2.4"/>`;
+    case 'paw': return `<ellipse cx="0" cy="2.4" rx="3.6" ry="3" fill="${c}"/>${[[-4.6, -2.4], [-1.6, -4.8], [1.6, -4.8], [4.6, -2.4]].map(([a, d]) => `<circle cx="${a}" cy="${d}" r="1.6" fill="${c}"/>`).join('')}`;
+    case 'heart': return `<path d="M0 5.5 C-7 0 -5 -6 0 -2.6 C5 -6 7 0 0 5.5Z" fill="${c}"/>`;
+    case 'leaf': return `<path d="M-6 5 Q-6 -6 6 -6 Q6 5 -6 5Z" fill="${c}"/><path d="M-6 5 L3 -3" stroke="${b.color}" stroke-width="1"/>`;
+    case 'star': return `<path d="M0 -6.5 L1.8 -2 L6.5 -2 L2.7 1 L4.1 5.8 L0 3 L-4.1 5.8 L-2.7 1 L-6.5 -2 L-1.8 -2Z" fill="${c}"/>`;
+    case 'drop': return `<path d="M0 -6.5 Q5 0 5 2.5 A5 5 0 0 1 -5 2.5 Q-5 0 0 -6.5Z" fill="${c}"/>`;
+    case 'bun': return `<path d="M-6.5 3 Q-6.5 -5 0 -5 Q6.5 -5 6.5 3Z" fill="${c}"/><path d="M-3 -1 q1.5 -2 3 0 q1.5 -2 3 0" stroke="${b.color}" stroke-width="1" fill="none"/><rect x="-7" y="3" width="14" height="2.4" rx="1" fill="${c}"/>`;
+    case 'cup': return `<path d="M-5 -2 L5 -2 L4 5 L-4 5Z" fill="${c}"/><path d="M5 -.5 q3 .5 1 4" ${st} stroke-width="1.2"/><path d="M-2 -4.5 q-1 -2 0 -3.5 M1.5 -4.5 q-1 -2 0 -3.5" ${st} stroke-width="1"/>`;
+    case 'plant': return `<path d="M-3.5 1 L3.5 1 L2.6 6 L-2.6 6Z" fill="${c}"/><path d="M0 1 Q-1 -4 -5 -5 Q-4 -1 0 1 Q1 -5 5 -6 Q4 -1 0 1" fill="${c}"/>`;
+    case 'flower': return `${[0, 72, 144, 216, 288].map(a => `<circle cx="${(Math.cos(a * Math.PI / 180) * 3.4).toFixed(1)}" cy="${(Math.sin(a * Math.PI / 180) * 3.4 - 1).toFixed(1)}" r="2.4" fill="${c}"/>`).join('')}<circle cx="0" cy="-1" r="1.6" fill="#f3c55a"/><path d="M0 2 L0 7" ${st} stroke-width="1.2"/>`;
+    case 'scarf': return `<path d="M-6 -4 Q0 -1 6 -4 L6 -1 Q0 2 -6 -1Z M2 0 L4 7 L1 7 L0 1Z" fill="${c}"/>`;
+    case 'atom': return `<ellipse rx="7" ry="2.6" ${st} stroke-width="1.2"/><ellipse rx="7" ry="2.6" ${st} stroke-width="1.2" transform="rotate(60)"/><ellipse rx="7" ry="2.6" ${st} stroke-width="1.2" transform="rotate(-60)"/><circle r="1.6" fill="${c}"/>`;
+  }
+}
+/** Mini couverture pour la bulle du lecteur. */
+function coverIcon(b: Book) {
+  return `<rect x="-20" y="-26" width="40" height="52" rx="4" fill="${b.color}" ${L(2)}/><rect x="-20" y="-26" width="7" height="52" rx="3" fill="#000" opacity=".15"/>
+    <g transform="translate(3 -6) scale(1.3)">${iconArt(b)}</g>
+    <text x="3" y="16" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="7.5" fill="${b.ink}">${b.genre.toUpperCase()}</text>`;
+}
+/**
+ * Livre ouvert vu de l'extérieur : à gauche le dos (4e de couverture), à droite la couverture avec
+ * son titre ; les pages (crème) dépassent à peine en haut, tournées vers le lecteur.
+ */
+function bookCover(b: Book) {
+  const [l1, l2 = ''] = b.title.split('|');
+  return `<path d="M-25 -17 Q-16 -19 -6 -14 Q8 -24 27 -21 L27 -15 L-25 -13Z" fill="#fffaf0" ${L(1.1)}/>
+    <path d="M-24 -14 L-6 -11 L-6 23 L-24 19Z" fill="${b.color}" ${L(1.8)}/><path d="M-24 -14 L-6 -11 L-6 23 L-24 19Z" fill="#000" opacity=".16"/>
+    <path d="M-20 -6 l10 1.6 M-20 -2 l10 1.6 M-20 2 l7 1.2" stroke="${b.ink}" stroke-width="1" opacity=".55"/>
+    <path d="M-6 -11 L27 -18 L27 18 L-6 23Z" fill="${b.color}" ${L(1.8)}/>
+    <path d="M-6 -11 L-6 23" stroke="#000" stroke-width="2.4" opacity=".18"/>
+    <g transform="translate(10.5 0) skewY(-12)">
+      <rect x="-14" y="-15.5" width="28" height="6" rx="1.5" fill="${b.ink}" opacity=".92"/>
+      <text x="0" y="-11" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="4.4" letter-spacing=".3" fill="${b.color}">${b.genre.toUpperCase()}</text>
+      <text x="0" y="-2.5" text-anchor="middle" font-family="Fraunces,serif" font-weight="700" font-style="italic" font-size="6.4" fill="${b.ink}">${l1}</text>
+      <text x="0" y="4.4" text-anchor="middle" font-family="Fraunces,serif" font-weight="700" font-style="italic" font-size="6.6" fill="${b.ink}">${l2}</text>
+      <g transform="translate(0 12) scale(.55)">${iconArt(b)}</g>
+    </g>`;
+}
+/** Magazine plié en deux : la couverture (gros titre, photo ronde) tournée vers nous. */
+function magazineCover(b: Book) {
+  return `<g transform="rotate(-4)"><rect x="-16" y="-20" width="34" height="42" rx="2" fill="#fffaf0" ${L(1.1)}/>
+    <rect x="-17" y="-21" width="34" height="42" rx="2" fill="${b.color}" ${L(1.8)}/>
+    <text x="0" y="-11.5" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="${b.title.length > 6 ? 6 : 7.6}" letter-spacing=".4" fill="${b.ink}">${b.title}</text>
+    <circle cx="0" cy="3" r="8.5" fill="#fffaf2" opacity=".9"/><g transform="translate(0 3) scale(.8)">${iconArt(b, b.color)}</g>
+    <rect x="-13" y="13" width="26" height="6" rx="1.5" fill="${b.ink}" opacity=".92"/><text x="0" y="17.5" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="4.2" letter-spacing=".3" fill="${b.color}">${b.genre.toUpperCase()}</text></g>`;
 }

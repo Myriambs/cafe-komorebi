@@ -3,7 +3,8 @@ export type MouseWho = 'captain' | 'dusty' | 'bubbles' | 'nibbles';
 export const CREW: MouseWho[] = ['captain', 'dusty', 'bubbles', 'nibbles'];
 export type Who = 'hero' | 'moka' | 'grandma' | 'biscuit' | MouseWho;
 export const isMouse = (w: string): w is MouseWho => (CREW as string[]).includes(w);
-export interface Outfit { id: string; name: string; price: number; vars: string; swatch: string }
+/** `ad` : se débloque en regardant une pub récompensée (au lieu de payer en pièces). */
+export interface Outfit { id: string; name: string; price: number; vars: string; swatch: string; ad?: boolean }
 
 export const NOIR_VARS = '--shirt:#4a4452;--collar:#3d3845;--apron:#36313d;--apronD:#2d2933;--cap:#36313d;--brim:#2d2933;--pants:#36313d;';
 
@@ -25,9 +26,13 @@ export const OUTFITS: Record<Who, Outfit[]> = {
     { id: 'sage', name: 'Garden sage', price: 25, vars: '--gcard:#a9c4ae;--gcardD:#93b89f;', swatch: '#a9c4ae' }
   ],
   biscuit: [
+    // rouge et bleu offerts ; les autres couleurs se débloquent avec une pub
     { id: 'red', name: 'Red bandana', price: 0, vars: '', swatch: '#e86a5f' },
-    { id: 'sky', name: 'Sky bandana', price: 20, vars: '--bandana:#7fa8d8;', swatch: '#7fa8d8' },
-    { id: 'sunflower', name: 'Sunflower bandana', price: 20, vars: '--bandana:#f3c24a;', swatch: '#f3c24a' }
+    { id: 'sky', name: 'Blue bandana', price: 0, vars: '--bandana:#7fa8d8;', swatch: '#7fa8d8' },
+    { id: 'sunflower', name: 'Sunflower bandana', price: 0, ad: true, vars: '--bandana:#f3c24a;', swatch: '#f3c24a' },
+    { id: 'mint', name: 'Mint bandana', price: 0, ad: true, vars: '--bandana:#8fc9a8;', swatch: '#8fc9a8' },
+    { id: 'lavender', name: 'Lavender bandana', price: 0, ad: true, vars: '--bandana:#b9a2e0;', swatch: '#b9a2e0' },
+    { id: 'pink', name: 'Strawberry bandana', price: 0, ad: true, vars: '--bandana:#f2a2b4;', swatch: '#f2a2b4' }
   ],
   // la Crumb Crew : la couleur du costume (--mk) et son ombre (--mkD)
   captain: [
@@ -53,4 +58,4 @@ export const OUTFITS: Record<Who, Outfit[]> = {
 };
 
 export const outfitOf = (who: Who, id: string): Outfit => OUTFITS[who].find(o => o.id === id) ?? OUTFITS[who][0];
-export const isFree = (who: Who, id: string) => outfitOf(who, id).price === 0;
+export const isFree = (who: Who, id: string) => { const o = outfitOf(who, id); return o.price === 0 && !o.ad; };

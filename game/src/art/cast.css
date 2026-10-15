@@ -164,3 +164,29 @@
   .mktail { animation: sway 2.4s ease-in-out infinite; }
   .balloon { animation: sway 3s ease-in-out infinite; }
   [data-state="walk"] .mktail { animation-duration: .5s; }
+
+  /* Moka boude et détourne la tête (niveau 3, devant la porte secrète) */
+  [data-state="snub"] .o-snub, [data-state="snub"] .o-rest { display: inline; }
+  [data-state="snub"] .mhead { transform: rotate(-18deg) translate(-6px, -3px); transition: transform .35s ease-out; }
+  [data-state="snub"] .mtail { animation: sway 1.1s ease-in-out infinite; }
+
+  /* Biscuit tout content (la queue s'agite très vite) */
+  [data-state="wag"] .o-happy, [data-state="wag"] .o-tailup, [data-state="wag"] .o-bandana, [data-state="wag"] .o-smile, [data-state="wag"] .o-tongue { display: inline; }
+  [data-state="wag"] .tailw { animation: wag .22s ease-in-out infinite; }
+
+  /* Crumb Crew à table : grignoter à deux mains (« nibble ») ou boire dans un petit verre (« sip ») */
+  .mk-eat, .mk-drink { display: none; }
+  [data-state="nibble"] .mk-eat, [data-state="sip"] .mk-drink { display: inline; }
+  [data-state="nibble"] .mk-arms, [data-state="sip"] .mk-arms .armR, [data-state="sip"] .mk-tool { display: none; }
+  [data-state="nibble"] .mk-bite { animation: nib .38s ease-in-out infinite; }
+  [data-state="nibble"] .o-mkmouth { display: none; }
+  [data-state="sip"] .mk-glass { animation: sipGlass 2.6s ease-in-out infinite; }
+  @keyframes nib { 50% { transform: translateY(3px) rotate(4deg); } }
+  @keyframes sipGlass { 0%, 100% { transform: translate(0, 0) rotate(0); } 35%, 70% { transform: translate(-10px, -2px) rotate(-28deg); } }
+
+  /* Moka mange dans sa gamelle : yeux fermés de bonheur, la tête qui plonge */
+  [data-state="munch"] .o-rest, [data-state="munch"] .o-munch { display: inline; }
+  [data-state="munch"] .mhead { animation: munchHead .5s ease-in-out infinite; }
+  [data-state="munch"] .chew { animation: nib .25s ease-in-out infinite; }
+  [data-state="munch"] .mtail { animation: sway .9s ease-in-out infinite; }
+  @keyframes munchHead { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(9px); } }

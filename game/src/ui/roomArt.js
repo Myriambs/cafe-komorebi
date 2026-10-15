@@ -70,6 +70,7 @@ function shell() {
   <g class="mn"><rect x="1300" y="140" width="70" height="26" rx="4" fill="#fdf1dd" ${L(1.5)}/><text class="artText" x="1335" y="158" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="15" fill="#c0666a">Closed</text></g>
   <g class="md ms"><rect x="1300" y="140" width="70" height="26" rx="4" fill="#fdf1dd" ${L(1.5)}/><text class="artText" x="1335" y="158" text-anchor="middle" font-family="Fraunces,serif" font-style="italic" font-size="15" fill="#4f8a6a">Open</text></g>
 
+  <path d="M1420 316 L1500 436 L1500 450 L1420 330Z" fill="#e3cfb3" ${L(1)}/>
   ${souvenirPhoto()}
   ${library()}
 
@@ -129,7 +130,7 @@ function souvenirPhoto() {
 
 /* ---------- Bibliothèque en relief : livres et magazines à emprunter (mur de droite, derrière Moka) ---------- */
 function library() {
-  const x0 = 1446, x1 = 1594, D = [-18, 9];            // D : profondeur (le meuble avance vers nous)
+  const x0 = 1490, x1 = 1594, D = [-18, 9];            // D : profondeur (le meuble avance vers nous)
   const top = x => 200 + (x - x0) * 0.16, bot = x => 330 + (x - 1420) * 1.5 - 6;
   const at = (x, f) => top(x) + (bot(x) - top(x)) * f;
   const P2 = (x, f, k = 0) => [x + D[0] * k, at(x, f) + D[1] * k];
@@ -419,22 +420,37 @@ function roomLabels() {
   </g>`;
 }
 
-/* ---------- Trou de souris au bas de la porte de la boulangerie (Crumb Crew) ---------- */
-// Le repère suit la pente du bas de la porte (skewY) : la base du trou est posée dessus.
-const HOLE = { x: 116, y: 427 };
-function mouseHole(kind = 'hole') {
+/* ---------- La porte secrète de la Crumb Crew ---------- */
+// Petite porte dans le bas du mur de droite, entre le coin et la bibliothèque, à côté du coussin de Moka.
+// Elle est là depuis le début mais se fond dans la plinthe : on ne la remarque qu'au niveau 3.
+// Le repère suit la pente du mur de droite (skewY) : la base de la porte est posée sur le sol.
+const HOLE = { x: 1450, y: 375 };
+const WALL = '#ead6bd';
+function mouseHole(kind = 'hidden') {
   const arch = (w, hh) => `M${-w} 0 L${-w} ${-hh + w} Q${-w} ${-hh} 0 ${-hh} Q${w} ${-hh} ${w} ${-hh + w} L${w} 0Z`;
-  const inner = kind === 'door'
-    ? `<path d="${arch(19, 46)}" fill="#7a4e36" ${L(2)}/><path d="${arch(14.5, 40)}" fill="#e8a24a" ${L(1.4)}/>
-       <path d="M-6 -2 L-6 -30 M6 -2 L6 -30" stroke="#a8743f" stroke-width="1.4"/>
-       <circle cx="0" cy="-26" r="5.5" fill="#ffd28a" ${L(1.2)}/><path d="M0 -31.5 L0 -20.5 M-5.5 -26 L5.5 -26" stroke="#a8743f" stroke-width="1"/>
-       <circle cx="8" cy="-12" r="1.8" fill="${P.gold}"/>
-       <rect x="-10" y="-56" width="20" height="9" rx="2" fill="#fdf1dd" ${L(1)}/><text x="0" y="-49.5" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="5" fill="#6e4a3e">CRUMB CREW</text>
-       <ellipse cx="0" cy="1" rx="16" ry="2.4" fill="#e86a5f" ${L(1)}/>`
-    : `<path d="${arch(19, 46)}" fill="#7a4e36" ${L(2)}/><path d="${arch(14.5, 40)}" fill="#2a1f26"/>
-       <path d="${arch(14.5, 40)}" fill="none" stroke="#e3b98a" stroke-width="1.4" opacity=".7"/>
-       <ellipse cx="0" cy="-3" rx="12" ry="2.4" fill="#000" opacity=".4"/>`;
-  return `<g id="mouseHole" transform="translate(${HOLE.x} ${HOLE.y}) skewY(-56.8)">${inner}</g>`;
+  const W = 15, H = 40;
+  // le panneau de la porte, peint comme le mur (rainures discrètes, minuscule bouton)
+  const panel = (op = 1) => `<path d="${arch(W, H)}" fill="${WALL}" stroke="#dcc5a6" stroke-width="1.2" opacity="${op}"/>
+    <path d="M${-W} -10 L${W} -10" stroke="#e3cfb3" stroke-width="7"/><path d="M${-W} -13.5 L${W} -13.5" stroke="#d6bf9f" stroke-width=".8"/>
+    <circle cx="${W - 5}" cy="-20" r="1.3" fill="#d6bf9f"/>`;
+  const dark = `<path d="${arch(W, H)}" fill="#2a1f26"/><ellipse cx="0" cy="-4" rx="${W - 3}" ry="6" fill="#ffd28a" opacity=".35"/>`;
+  const eyes = `<g class="blinkEyes"><circle cx="-11" cy="-16" r="1.9" fill="#ffe9a8"/><circle cx="-6.6" cy="-16.6" r="1.9" fill="#ffe9a8"/></g>`;
+  let inner;
+  if (kind === 'ajar') {
+    // entrouverte : un mince croissant d'ombre, de la lumière chaude… et deux petits yeux
+    // + un filet de lumière chaude qui s'étale sur le parquet
+    inner = `<path d="M${-W} 0 L${-W + 8} 0 L${-W - 26} 14 L${-W - 40} 14Z" fill="#ffd28a" opacity=".28"/>${dark}${eyes}<g transform="translate(${W} 0) scale(.6 1) translate(${-W} 0)">${panel()}</g>`;
+  } else if (kind === 'open') {
+    inner = `${dark}<g transform="translate(${W} 0) scale(.22 1) translate(${-W} 0)"><path d="${arch(W, H)}" fill="#d9c2a2" ${L(1.2)}/></g>`;
+  } else if (kind === 'door') {
+    inner = `<path d="${arch(W + 3, H + 4)}" fill="#7a4e36" ${L(2)}/><path d="${arch(W, H)}" fill="#e8a24a" ${L(1.4)}/>
+       <path d="M-5 -2 L-5 -26 M5 -2 L5 -26" stroke="#a8743f" stroke-width="1.4"/>
+       <circle cx="0" cy="-23" r="5" fill="#ffd28a" ${L(1.2)}/><path d="M0 -28 L0 -18 M-5 -23 L5 -23" stroke="#a8743f" stroke-width="1"/>
+       <circle cx="8" cy="-11" r="1.8" fill="${P.gold}"/>
+       <rect x="-11" y="-55" width="22" height="9" rx="2" fill="#fdf1dd" ${L(1)}/><text x="0" y="-48.5" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="5" fill="#6e4a3e">CRUMB CREW</text>
+       <ellipse cx="0" cy="1" rx="14" ry="2.4" fill="#e86a5f" ${L(1)}/>`;
+  } else inner = panel();
+  return `<g id="mouseHole" transform="translate(${HOLE.x} ${HOLE.y}) skewY(56.3)">${inner}</g>`;
 }
 
 export { HOLE, mouseHole, roomLabels, LN, L, ch, shell, lamps, backWall, station, counter, sofaBack, sofaFront, grandmaLap, recordPlayer, rug, armBack, armFront, roundTable, chairBack, chairSeat, tableCloth, plant };

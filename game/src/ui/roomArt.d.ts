@@ -20,4 +20,5 @@ export function chairSeat(x: number, y: number, s?: number, dir?: number): strin
 export function tableCloth(x: number, y: number): string;
 export function roomLabels(): string;
 export const HOLE: { x: number; y: number };
-export function mouseHole(kind?: 'hole' | 'door'): string;
+export type DoorKind = 'hidden' | 'ajar' | 'open' | 'door';
+export function mouseHole(kind?: DoorKind): string;

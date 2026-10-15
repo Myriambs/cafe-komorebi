@@ -256,3 +256,22 @@ body.pixel .art .artText { display: none; }
 /* écran « Who are you? » : tient sur les petits écrans (choix du niveau en plus) */
 .title .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 @media (max-height: 860px) { .pick svg { height: 140px; } #uniPrev > div { width: 84px !important; } .title .heroes { margin: 10px 0; } }
+
+/* pub récompensée (emplacement provisoire) */
+.ad-wrap { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(43, 31, 42, .55); z-index: 5; }
+.ad-box { position: relative; width: min(420px, 86%); background: #fffaf2; border: 3px solid var(--ink); border-radius: 22px; padding: 22px 22px 18px; text-align: center; font-weight: 700; }
+.ad-tag { position: absolute; top: 10px; left: 14px; font-size: 12px; letter-spacing: 1px; color: #8a6a3c; }
+.ad-art { font-size: 54px; margin: 10px 0 4px; }
+.ad-bar { height: 10px; border: 2px solid var(--ink); border-radius: 6px; background: #f3e6d3; overflow: hidden; margin: 12px 0; }
+.ad-bar i { display: block; height: 100%; width: 0; background: #f2c46a; transition: width 5s linear; }
+.ad-count { position: absolute; top: 10px; right: 16px; font-weight: 800; }
+
+/* lecture : une main tient le livre, l'autre boit, puis les deux mains tournent la page */
+.readBook .rdCup, .readBook .rdHandB, .readBook .rdPage { transform-box: fill-box; animation-duration: 9s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-delay: var(--rd, 0s); }
+.readBook .rdCup { transform-origin: center; animation-name: rdCup; }
+.readBook .rdHandB { transform-origin: center; animation-name: rdHand; }
+.readBook .rdPage { transform-origin: left bottom; opacity: 0; animation-name: rdPage; }
+@keyframes rdCup { 0%, 28%, 64%, 100% { transform: translate(0, 0) rotate(0); } 38%, 54% { transform: translate(-26px, -40px) rotate(-22deg); } }
+@keyframes rdHand { 0%, 28%, 64%, 96%, 100% { transform: translate(0, 0); } 38%, 54% { transform: translate(-26px, -38px); } 72%, 86% { transform: translate(-11px, -31px); } }
+@keyframes rdPage { 0%, 72% { opacity: 0; transform: scaleX(1); } 75% { opacity: 1; transform: scaleX(1); } 85% { opacity: 1; transform: scaleX(-1); } 89%, 100% { opacity: 0; transform: scaleX(-1); } }
+.blinkEyes { transform-box: fill-box; transform-origin: center; animation: blink 2.2s infinite; }

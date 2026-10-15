@@ -180,6 +180,13 @@ function moka() {
         <g style="animation:snot 2.6s ease-in-out infinite;transform-origin:108px 152px"><circle cx="113" cy="150" r="7" fill="#dff0fb" fill-opacity=".8" stroke="${P.ink}" stroke-width="1.5"/><circle cx="111" cy="148" r="1.8" fill="#fff"/></g></g>
       <g class="only o-cuddle"><path d="M75 139 Q82 132 89 139 M111 139 Q118 132 125 139" fill="none" stroke="${P.ink}" stroke-width="2.6" stroke-linecap="round"/>
         <path d="M74 124 L89 128 M126 124 L111 128" stroke="${P.ink}" stroke-width="2.5" stroke-linecap="round"/></g>
+      <!-- mange : yeux fermés de bonheur, joues qui mâchent -->
+      <g class="only o-munch"><path d="M75 139 Q82 132 89 139 M111 139 Q118 132 125 139" fill="none" stroke="${P.ink}" stroke-width="2.6" stroke-linecap="round"/>
+        <g class="chew"><ellipse cx="80" cy="152" rx="7" ry="4" fill="${P.pink}" opacity=".9"/><ellipse cx="120" cy="152" rx="7" ry="4" fill="${P.pink}" opacity=".9"/></g></g>
+      <!-- boude : yeux fermés, nez en l'air, « hmph » (elle protège un secret) -->
+      <g class="only o-snub"><path d="M74 136 Q81 131 88 136 M110 136 Q117 131 124 136" fill="none" stroke="${P.ink}" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M73 121 L88 119 M127 121 L112 119" stroke="${P.ink}" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="146" y="104" font-family="Fraunces,serif" font-style="italic" font-weight="700" font-size="15" fill="${P.ink}">hmph</text></g>
       <path d="M95 148 L105 148 L100 154Z" fill="${P.nose}" stroke="${P.ink}" stroke-width="1.8" stroke-linejoin="round"/>
       <path d="M100 154 Q96 158 92 157 M100 154 Q104 158 108 157" fill="none" stroke="${P.ink}" stroke-width="2" stroke-linecap="round"/>
       <path d="M70 146 L50 141 M70 151 L50 154 M130 146 L150 141 M130 151 L150 154" stroke="${P.ink}" stroke-width="1.5" stroke-linecap="round"/>
@@ -484,6 +491,17 @@ function crumbMouse(kind) {
   // bras levés (état « cheer »)
   const cheer = `<g class="mk-cheer">${limb('M66 172 Q52 150 50 132', c.fur, 13)}${limb('M134 172 Q148 150 150 132', c.fur, 13)}
     ${sparkle(40, 120, 8)}${sparkle(162, 116, 9)}${sparkle(100, 46, 7)}</g>`;
+  // repas (fin du niveau 3) : grignoter une miette à deux mains, ou boire dans un tout petit verre
+  const DRINK = { captain: '#f5a83a', dusty: '#fffaf2', bubbles: '#d9577a', nibbles: '#b8d86a' }[kind];
+  const munch = `<g class="mk-eat">${limb('M68 178 Q66 154 88 140', c.fur, 13)}${limb('M132 178 Q134 154 112 140', c.fur, 13)}
+    <g class="mk-bite" style="transform-origin:100px 134px"><path d="M84 132 Q86 118 100 118 Q114 118 116 132 Q112 144 100 144 Q88 144 84 132Z" fill="#e3b77a" ${O}/>
+      <path d="M90 126 l3 2 M104 124 l3 1 M98 134 l3 1" stroke="#b07a3e" stroke-width="2" stroke-linecap="round"/><path d="M110 120 q4 4 6 10" fill="none" stroke="#fffaf2" stroke-width="2.4" stroke-linecap="round" opacity=".7"/></g>
+    <circle cx="86" cy="140" r="7.5" fill="${c.fur}" ${O}/><circle cx="114" cy="140" r="7.5" fill="${c.fur}" ${O}/>
+    ${[[78, 168, 0], [124, 176, .5], [100, 186, 1]].map(([x, y, d]) => `<g style="animation:dustL 1.1s ${d}s ease-in infinite;transform-origin:${x}px ${y}px"><circle cx="${x}" cy="${y}" r="2.6" fill="#e3b77a" stroke="${P.ink}" stroke-width="1"/></g>`).join('')}</g>`;
+  const sip = `<g class="mk-drink">${limb('M134 178 Q140 150 118 138', c.fur, 13)}
+    <g class="mk-glass" style="transform-origin:116px 140px"><path d="M104 108 L126 108 L123 140 L107 140Z" fill="#eef7fa" fill-opacity=".9" ${O}/>
+      <path d="M105.5 120 L124.5 120 L122.6 138 L107.4 138Z" fill="${DRINK}"/><path d="M109 112 L110 134" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/></g>
+    <circle cx="118" cy="138" r="7.5" fill="${c.fur}" ${O}/></g>`;
   const puffs = (x, y) => puff(x, y, 'dustL', 0) + puff(x + 6, y + 2, 'dustR', .35, 4) + puff(x - 4, y - 2, 'dustL', .7, 5) + puff(x + 10, y, 'dustR', 1, 3.5);
   const bubble = (x, y, r, d) => `<g style="animation:rise 1.8s ${d}s ease-out infinite;transform-origin:${x}px ${y}px"><circle cx="${x}" cy="${y}" r="${r}" fill="#eaf6ff" fill-opacity=".7" stroke="#7fa8d8" stroke-width="1.4"/><circle cx="${x - r * .35}" cy="${y - r * .35}" r="${r * .25}" fill="#fff"/></g>`;
 
@@ -540,7 +558,7 @@ function crumbMouse(kind) {
     <g class="bob mkbody" style="transform-origin:100px 245px">
       ${tail}${kind === 'nibbles' ? back : ''}${feet}${body}${dress}
       ${kind === 'nibbles' ? '' : back}${ears}${head}${face}${hat}
-      <g class="mk-arms">${arm(68, 184, 'armL')}${tool}${arm(132, 186, 'armR')}</g>${cheer}
+      <g class="mk-arms">${arm(68, 184, 'armL')}${tool}${arm(132, 186, 'armR')}</g>${cheer}${munch}${sip}
     </g>
     <g class="only o-clean">${fx}</g>`;
   return kind === 'nibbles' ? `<g transform="translate(100 247) scale(.84) translate(-100 -247)">${inner}</g>` : inner;

@@ -107,6 +107,11 @@ async function playLevel2() {
       ]);
       const result = await juiceService(LEVEL2_DAY, 'The <b>juice bar</b> is open! Take orders, then tap <b>🍊 Juice bar</b>: put a fruit in the press, press it into a glass, and add what the ticket says.');
       S.coins = result.coins; S.totalServed += result.served;
+      // le dernier client parti, la salle est calme… et la porte secrète s'entrouvre une seconde
+      result.room.tip(null);
+      await sleep(500);
+      await result.room.doorPeek();
+      await talk([NARR('In the quiet café, something near the floor creaks… then all is still again.')]);
       result.room.destroy();
       await dayCard(1, result.served, result.earned, S.coins, 'Close up for the night');
       S.phase = 'night'; persist();
@@ -134,22 +139,18 @@ async function playLevel3() {
   while (S.phase !== 'done') {
     if (S.phase === 'morning' || S.phase === 'service' || S.phase === 'prologue') {
       await morning(1, LEVEL3_DAY, 'Level 3 · Morning', [
-        H('Strange… when I opened up this morning, the counter was already spotless.'),
-        H('And there were tiny footprints in the flour jar. Who cleans a café at night?'),
-        H(`${S.names.moka} pretends she knows nothing. Hmm…`)
+        H('Last night, after closing, I was sure something creaked down near the wall…'),
+        H('Probably just the old building. Anyway, the whole town wants coffee AND juice today!'),
+        H(`${S.names.moka} keeps glancing at the right wall. Hmm…`)
       ]);
       dayMess = { used: [], read: [] };
-      const result = await juiceService(LEVEL3_DAY, 'Coffee <b>and</b> juice today! Three happy customers and we close early. …Did you hear a squeak just now?', room => {
+      const result = await juiceService(LEVEL3_DAY, 'Rush day! Groups of friends want coffee <b>and</b> juice. Serve everyone, then we close. (So many cups and crumbs…)', room => {
         const order = room.onOrder, book = room.onBook;
         room.onOrder = (c: Cust) => { dayMess.used.push(c.table); order?.(c); };
         room.onBook = (c: Cust) => { dayMess.read.push(c.table); book?.(c); };
-        // indice : après le premier client servi, une petite tête sort du mur… et Moka fait semblant de rien
-        let peeked = false;
-        room.onServed = () => {
-          if (peeked) return; peeked = true;
-          setTimeout(() => { room.peekMouse(); room.sayMoka('Hmph. Nothing to see here.'); setTimeout(() => room.sayMoka(null), 2400); }, 1500);
-        };
       });
+      // le dernier client est parti : la Crumb Crew croit que c'est fini… surprise !
+      await doorSurprise(result.room);
       S.coins = result.coins; S.totalServed += result.served;
       result.room.destroy();
       await dayCard(1, result.served, result.earned, S.coins, 'Close up for the night');
@@ -161,7 +162,7 @@ async function playLevel3() {
         clear(); setExterior(null);
         room = new Room({
           hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'night', dog: 'patrol', day: 1, goal: 0, coins: S.coins,
-          recipes: [], maxSeated: 0, customers: false, grandma: false, juiceOpen: true, mouseHole: 'hole',
+          recipes: [], maxSeated: 0, customers: false, grandma: false, juiceOpen: true,
           outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
         });
         room.onCard = who => openCharCard(who, room);
@@ -171,6 +172,7 @@ async function playLevel3() {
       await crewNight({
         room, hero: S.hero, name: S.name, heroVars: heroVars(), mokaName: S.names.moka, mokaVars: petVars('moka'),
         varsOf: w => petVars(w), used: dayMess.used, read: dayMess.read, juice: true,
+        dogName: S.names.biscuit, dogVars: petVars('biscuit'),
         openCard: w => openCharCard(w, room)
       });
       S.coins = room.coins;
@@ -187,6 +189,22 @@ async function playLevel3() {
   await wipe(() => { clear(); pixel(false); });
 }
 
+/** Niveau 3, juste après le départ du dernier client : une souris pousse la porte secrète, croyant le café vide,
+ * voit le héros, prend peur et rentre en courant. Moka détourne la tête et se plante devant le mur. */
+async function doorSurprise(room: Room) {
+  room.tip(null);
+  await sleep(700);
+  await room.withMoka(async () => {
+    await room.mouseDash();
+    await talk([H('…Huh?! A mouse just peeked out of a tiny door in the wall… and ran back in!', S.uniform)]);
+    const g = room.doorGuard;
+    await room.walkMoka(g.x, g.y, [{ x: g.x - 60, y: g.y + 50 }]);
+    room.setMoka('snub');
+    await sleep(1600);
+    await talk([H(`(${S.names.moka} turned her head away and sat right in front of it.) …I'll find out tonight.`, S.uniform)]);
+  });
+}
+
 /** Statistiques du niveau (boissons servies, livres prêtés, pourboires). */
 function trackStats(room: Room) {
   room.onDrink = (r, o) => { S.stats.drinks[r.id] = (S.stats.drinks[r.id] ?? 0) + 1; if (o === 'delighted') S.stats.delighted++; };
@@ -199,7 +217,7 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
   const start = S.coins;
   const room = new Room({
     hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: plan.goal, coins: S.coins,
-    recipes: plan.recipes, maxSeated: plan.maxSeated, parties: plan.parties, customers: true, grandma: false, juiceOpen: true, mouseHole: S.level >= 3 ? 'hole' : undefined,
+    recipes: plan.recipes, maxSeated: plan.maxSeated, parties: plan.parties, customers: true, grandma: false, juiceOpen: true,
     outfitVars: { moka: petVars('moka'), grandma: petVars('grandma'), biscuit: petVars('biscuit') }
   });
   room.onCard = who => openCharCard(who, room);
@@ -389,8 +407,10 @@ function openCharCard(who: Who, room?: Room): Promise<void> {
     music.sfx('cash'); persist(); return true;
   };
   if (isMouse(who)) return openMouseCard(who, room, buy);
-  const day = S.day, dogLocked = who === 'biscuit' && day < 3 && S.phase !== 'done';
-  const state = { hero: 'espresso', moka: 'idle', grandma: 'read', biscuit: dogLocked ? 'stray' : S.phase === 'done' ? 'idle' : 'named' }[who];
+  // au niveau 1, Biscuit est encore un chien perdu (jusqu'au jour 3) ; ensuite il fait partie du café
+  const dogLocked = who === 'biscuit' && S.level === 1 && S.day < 3 && S.phase !== 'done';
+  const dogState = S.level > 1 || S.phase === 'done' ? 'idle' : 'named';
+  const state = { hero: 'espresso', moka: 'idle', grandma: 'read', biscuit: dogLocked ? 'stray' : dogState }[who];
   const vars = who === 'hero' ? heroVars() : petVars(who);
   return openCard({
     who, charId: who === 'hero' ? heroId() : who, state, vars, locked: dogLocked,
@@ -406,6 +426,7 @@ function openCharCard(who: Who, room?: Room): Promise<void> {
       S.names[who] = cleanPetName(n, PROFILES[who].defaultName); persist(); return S.names[who];
     },
     onBuy: (_id, price) => buy(price),
+    onUnlock: () => persist(),
     onWear: id => {
       if (who === 'hero') S.uniform = id; else S.outfits[who] = id;
       persist(); music.sfx('transform');

@@ -81,7 +81,7 @@ describe('outfits and names', () => {
 describe('level 3 · the Crumb Crew', () => {
   const tables = [{ cx: 780, cy: 610 }, { cx: 1120, cy: 610 }, { cx: 730, cy: 805 }, { cx: 1110, cy: 810 }];
   it('levels 2 and 3 are short story days with real recipes', () => {
-    expect(LEVEL2_DAY.goal).toBe(3); expect(LEVEL3_DAY.goal).toBe(3);
+    expect(LEVEL2_DAY.goal).toBe(3); expect(LEVEL3_DAY.goal).toBe(4);
     for (const id of [...LEVEL2_DAY.recipes, ...LEVEL3_DAY.recipes]) expect(() => recipeById(id)).not.toThrow();
   });
   it('builds the mess from the tables used during the day', () => {
@@ -91,6 +91,15 @@ describe('level 3 · the Crumb Crew', () => {
     expect(m.some(x => x.kind === 'spill')).toBe(true);
     expect(new Set(m.map(x => x.id)).size).toBe(m.length);
     expect(messFor(tables, [], [], false).some(x => x.kind === 'spill')).toBe(false);
+  });
+  it('puts table mess on a chair seat or on the floor, alternating', () => {
+    for (const r of [0.1, 0.9]) {
+      const m = messFor(tables, [0, 1], [1], false, () => r).filter(x => x.table !== undefined);
+      expect(m.every(x => x.on === 'seat' || x.on === 'floor')).toBe(true);
+      expect(m.some(x => x.on === 'seat') && m.some(x => x.on === 'floor')).toBe(true);
+      for (let i = 1; i < m.length; i++) expect(m[i].on).not.toBe(m[i - 1].on);
+      expect(m.filter(x => x.on === 'seat').every(x => typeof x.chairY === 'number')).toBe(true);
+    }
   });
   it('each mouse has a job, books are for the hero', () => {
     expect(canClean('bubbles', 'ring')).toBe(true); expect(canClean('captain', 'ring')).toBe(false);

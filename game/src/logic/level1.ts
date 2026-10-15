@@ -24,5 +24,5 @@ export function dogJoins(day: number, servedToday: number, nightsFed: number): b
 /** Niveau 2, première journée : le bar à jus ouvre, 3 clients à satisfaire (court, pour suivre l'histoire). */
 export const LEVEL2_DAY: DayPlan = { day: 1, goal: 3, recipes: ['orangeJuice', 'appleMint', 'lemonade', 'berryFizz'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };
 
-/** Niveau 3 : café et jus mélangés, 3 clients, puis la nuit où la Crumb Crew se montre. */
-export const LEVEL3_DAY: DayPlan = { day: 1, goal: 3, recipes: ['latte', 'cappuccino', 'mocha', 'orangeJuice', 'lemonade', 'berryFizz'], maxSeated: 2, parties: [1, 2], dogMorning: 'none' };
+/** Niveau 3 : jour de rush, café ET jus pour des groupes de deux (beaucoup de désordre), puis la nuit où la Crumb Crew se montre. */
+export const LEVEL3_DAY: DayPlan = { day: 1, goal: 4, recipes: ['latte', 'cappuccino', 'mocha', 'orangeJuice', 'lemonade', 'berryFizz'], maxSeated: 2, parties: [2], dogMorning: 'none' };
