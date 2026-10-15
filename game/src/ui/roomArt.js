@@ -204,19 +204,30 @@ function backWall() {
   ${[0, 1, 2].map(i => `<path d="M${430 + i * 34} 176 l0 -24 q13 -2 24 0 l0 24z" fill="${['#fffaf2', '#f6c6d0', '#a9c7e0'][i]}" ${L(1.5)}/>`).join('')}
   ${[0, 1, 2].map(i => `<circle cx="${548 + i * 26}" cy="${96 - (i % 2) * 6}" r="11" fill="${['#e8586a', '#9cc96f', '#f5b13a'][i]}" ${L(1.5)}/>`).join('')}`;
 }
-function station(juiceOpen = false) {
+function station(juiceOpen = false, teaOpen = false) {
+  // café, jus et un petit coin thé, côte à côte sur le mur du fond (café et jus un peu resserrés pour lui faire de la place)
   return `
-  <g class="hit" data-act="station"><g class="lift">
+  <g transform="translate(190 240) scale(.82) translate(-190 -240)"><g class="hit" data-act="station"><g class="lift">
     <rect x="190" y="240" width="250" height="16" rx="3" fill="#efe3d2" ${L(2)}/><rect x="196" y="256" width="238" height="74" fill="#a8743f" ${L(2)}/>
     ${espressoMachine()}
     ${hangSign(266, 'Café', 112)}
-  </g></g>
-  <g class="hit" data-act="juice"><g class="lift">
+  </g></g></g>
+  <g transform="translate(400 240) scale(.82) translate(-448 -240)"><g class="hit" data-act="juice"><g class="lift">
     <rect x="448" y="240" width="200" height="16" rx="3" fill="#efe3d2" ${L(2)}/><rect x="454" y="256" width="188" height="74" fill="#b3906a" ${L(2)}/>
     ${juiceBar()}
     ${hangSign(548, 'Juice', 120)}
     ${juiceOpen ? '' : soonRibbon(548, 150, -6, 'LEVEL 2 · SOON', 170)}
-  </g></g>`;
+  </g></g></g>
+  <g class="hit" data-act="tea"><g class="lift">${teaCorner()}${teaOpen ? '' : soonRibbon(612, 150, -6, 'SOON', 64, 11)}</g></g>`;
+}
+/* ---------- Petit coin thé : bouilloire, théière, boîtes de thé ---------- */
+function teaCorner() {
+  return `<g transform="translate(0 240) scale(.82) translate(0 -240)"><g transform="translate(110 0)">${hangSign(612, 'Tea', 92)}</g></g>
+    <rect x="574" y="240" width="84" height="13" rx="3" fill="#efe3d2" ${L(2)}/><rect x="579" y="253" width="74" height="61" fill="#8fb39a" ${L(2)}/>
+    <rect x="585" y="262" width="62" height="20" rx="3" fill="#a9c8b2" ${L(1.2)}/><rect x="585" y="288" width="62" height="20" rx="3" fill="#a9c8b2" ${L(1.2)}/>
+    ${[[590, '#8fbf8a'], [604, '#5a4a52'], [618, '#f2d27a']].map(([x, c]) => `<rect x="${x}" y="222" width="12" height="18" rx="2" fill="${c}" ${L(1.2)}/><rect x="${x - 1}" y="219" width="14" height="4" rx="1.5" fill="#efe3d2" ${L(1)}/>`).join('')}
+    <path d="M630 240 Q630 222 642 222 Q654 222 654 240Z" fill="#7fa8d8" ${L(1.5)}/><path d="M654 232 q8 -2 9 -8" fill="none" ${L(1.8)}/><circle cx="642" cy="220" r="2.4" fill="#fffaf2" ${L(1)}/>
+    <g style="animation:steam 2.4s infinite"><path d="M664 222 q-3 -6 0 -12" fill="none" stroke="#fffaf2" stroke-width="2" stroke-linecap="round"/></g>`;
 }
 
 /* ---------- Machine à espresso et moulin, dessinés d'après de vraies machines ---------- */

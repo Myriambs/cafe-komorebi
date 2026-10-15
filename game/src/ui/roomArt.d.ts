@@ -4,7 +4,7 @@ export function ch(fn: () => string, state: string, x: number, y: number, w: num
 export function shell(bakeryOpen?: boolean): string;
 export function lamps(): string;
 export function backWall(): string;
-export function station(juiceOpen?: boolean): string;
+export function station(juiceOpen?: boolean, teaOpen?: boolean): string;
 export function counter(): string;
 export function sofaBack(): string;
 export function sofaFront(): string;

@@ -31,7 +31,17 @@ export function candidateSvg(c: Candidate, state = 'idle', viewBox = '0 0 200 26
 }
 /** Portrait (tête et épaules) pour la boîte de dialogue et les cartes. */
 export const candidatePortrait = (c: Candidate, state = 'idle') => candidateSvg(c, state, '35 20 130 130');
-export const member = (c: Candidate) => ({ g: c.g, v: c.v, extra: candidateExtra(c) });
+/** Le tablier du café avec le badge à son nom (premier jour). */
+export const apron = (name: string) => `<g><path d="M86 136 L80 126 M114 136 L120 126" stroke="#5a3a2e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M86 138 L114 138 L116 170 L84 170Z" fill="#8a5a3e" stroke="${P.ink}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M78 168 L122 168 L126 214 Q100 221 74 214Z" fill="#8a5a3e" stroke="${P.ink}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M80 176 L120 176" stroke="#6e4a3e" stroke-width="2"/><rect x="90" y="186" width="20" height="14" rx="2" fill="#6e4a3e" stroke="${P.ink}" stroke-width="1.4"/>
+  <rect x="89" y="145" width="22" height="9" rx="2" fill="${P.gold}" stroke="${P.ink}" stroke-width="1.2"/><text x="100" y="152" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="5.5" fill="#6e4a3e">${name.toUpperCase()}</text></g>`;
+/** Le candidat pour la salle (accessoire, et le tablier une fois embauché). `svg` : le dessin complet. */
+export const member = (c: Candidate, withApron = false) => {
+  const extra = candidateExtra(c) + (withApron ? apron(c.name) : '');
+  return { g: c.g, v: c.v, extra, svg: `${customer(c.g, c.v)}${extra}` };
+};
 
 /** La chambre du héros, le soir : lit, Moka endormie, bureau et ordinateur portable, fenêtre au coucher du soleil. */
 export function bedroom(hero: 'm' | 'f', heroVars: string) {

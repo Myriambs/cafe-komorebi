@@ -25,6 +25,8 @@ export interface Cust {
   want?: 'book' | 'magazine'; readT?: number;
   /** Le livre (ou magazine) de chaque personne du groupe. */
   books?: Book[];
+  /** Déjà signalé comme impatient (notification biscuit / laisser partir). */
+  alerted?: boolean;
 }
 
 export const SPOTS = [{ cx: 780, cy: 610 }, { cx: 1120, cy: 610 }, { cx: 730, cy: 805 }, { cx: 1110, cy: 810 }];
@@ -96,7 +98,7 @@ export class Room {
     this.spawning = o.customers;
     const ov = o.outfitVars ?? {};
     this.el = h(`<div class="screen room" data-mode="${o.mode}"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet"><g class="art">
-      ${shell(o.bakeryOpen)}${mouseHole(o.mouseHole ?? 'hidden')}${lamps()}${backWall()}${stationArt(o.juiceOpen)}
+      ${shell(o.bakeryOpen)}${mouseHole(o.mouseHole ?? 'hidden')}${lamps()}${backWall()}${stationArt(o.juiceOpen, o.teaOpen)}
       <g transform="translate(820 400) scale(.88) translate(-820 -400)">${sofaBack()}
       ${o.grandma !== true && o.grandma !== undefined ? '' : `<g class="hit" data-act="card" data-who="grandma"><g transform="rotate(-5 820 380)"><svg id="grandmaSvg" x="745" y="200" width="150" height="195" viewBox="0 0 200 260" data-state="read" style="${ov.grandma ?? ''}" overflow="visible">${grandma()}</svg></g></g>`}
       ${sofaFront()}${o.grandma !== true && o.grandma !== undefined ? grandmaLap(false) : `<g class="hit" data-act="card" data-who="grandma">${grandmaLap()}</g>`}</g>${recordPlayer()}
@@ -192,7 +194,7 @@ export class Room {
 
   private tick(dt: number) {
     for (const c of this.custs) {
-      if (c.state === 'ready' || c.state === 'ordered') { c.patience = tickPatience(c.patience, dt); this.updateHearts(c); }
+      if (c.state === 'ready' || c.state === 'ordered') { c.patience = tickPatience(c.patience, dt); this.updateHearts(c); this.checkWaiting(c); }
       if (c.state === 'reading') { c.readT! -= dt; if (c.readT! <= 0) { c.readT = 0; this.leave(c); } else this.drawBubble(c); }
     }
     if (this.mokaBusy > 0) { if (this.mokaBusy < 90) this.mokaBusy -= dt; }
@@ -490,7 +492,7 @@ export class Room {
     else if (a === 'station') { if (this.o.customers) this.onStation?.(); }
     else if (a === 'juice') { if (this.o.juiceOpen) { if (this.o.customers) this.onJuice?.(); } else this.toast('The juice bar opens in Level 2 🍊'); }
     else if (a === 'bakery') { if (this.o.bakeryOpen) { if (this.o.customers) this.onBakery?.(); else this.toast('The bakery is warm and ready 🥐'); } else this.toast('The bakery opens in Level 4 🥐'); }
-    else if (a === 'tea') { if (this.o.teaOpen && this.o.customers) this.onTea?.(); }
+    else if (a === 'tea') { if (this.o.teaOpen) { if (this.o.customers) this.onTea?.(); } else this.toast('The tea room opens in Level 5 🍵'); }
     else if (a === 'music') this.onMusic?.();
     else if (a === 'card') this.onCard?.(el.dataset.who as Who);
   }
@@ -523,10 +525,114 @@ export class Room {
   }
   get seatAt() { return (spot: number, k: number) => this.seatPos(spot, k); }
 
+  /* ---------- S'asseoir : héros, Grand-mère, Moka (niveau 6) ---------- */
+  /** Une personne assise comme les clients : le corps dans le fauteuil, des jambes pliées devant le coussin. */
+  seatPerson(spot: number, k: number, inner: string, state: string, style = '', pants = '#5b4450') {
+    const sk = this.seatOf(spot, k), slot = this.$(`seat-${spot}-${sk}`), legs = this.$(`legs-${spot}-${sk}`);
+    const p = this.seatPos(spot, k), w = 150 * p.s, hh = 195 * p.s, x = p.x - w / 2, y = p.y - 150 * p.s;
+    slot.innerHTML = `<svg class="nobubble seated" x="${x}" y="${y}" width="${w}" height="${hh}" viewBox="0 0 200 260" data-state="${state}" style="${style}" overflow="visible">${inner}</svg>`;
+    legs.innerHTML = `<svg x="${x}" y="${y}" width="${w}" height="${hh}" viewBox="0 0 200 260" overflow="visible">${[[84, 99], [101, 116]].map(([a, b]) => `<rect x="${a}" y="194" width="${b - a}" height="30" rx="7" fill="${pants}" stroke="${P.ink}" stroke-width="2.2"/>`).join('')}
+      ${[[86, 97], [103, 114]].map(([a, b]) => `<rect x="${a}" y="222" width="${b - a}" height="30" rx="5" fill="${pants}" stroke="${P.ink}" stroke-width="2.2"/>`).join('')}
+      <ellipse cx="91" cy="256" rx="10" ry="5.5" fill="${P.brown}" stroke="${P.ink}" stroke-width="2.2"/><ellipse cx="109" cy="256" rx="10" ry="5.5" fill="${P.brown}" stroke="${P.ink}" stroke-width="2.2"/></svg>`;
+  }
+  /** Un animal posé sur l'assise d'une chaise. */
+  seatPet(spot: number, k: number, inner: string, state: string, style = '') {
+    const sk = this.seatOf(spot, k), slot = this.$(`seat-${spot}-${sk}`), p = this.seatPos(spot, k), s = p.s * 0.95;
+    slot.innerHTML = `<svg class="nobubble" x="${p.x - 66 * s}" y="${p.y - 14 - 166 * s}" width="${132 * s}" height="${172 * s}" viewBox="0 0 200 260" data-state="${state}" style="${style}" overflow="visible">${inner}</svg>`;
+  }
+  clearSeat(spot: number, k: number) { this.seat(spot, k, null); }
+  private heroSeat: { spot: number; k: number } | null = null;
+  /** Le héros marche jusqu'à une chaise et s'assoit. */
+  async heroSit(spot: number, k: number, tray = '') {
+    const p = this.seatPos(spot, k);
+    await this.heroWalk(p.x, p.y - 12, [{ x: p.x, y: LANE }], tray);
+    if (this.heroA) { this.stage.remove(this.heroA); this.heroA = null; }
+    this.heroSeat = { spot, k };
+    this.seatPerson(spot, k, DRAW[this.o.hero === 'f' ? 'heroF' : 'heroM'](), this.o.uniform, this.o.uniformVars ?? '', '#4a3a40');
+  }
+  /** Le héros se lève (il reste debout à côté de sa chaise). */
+  heroUp() {
+    if (!this.heroSeat) return;
+    const { spot, k } = this.heroSeat, p = this.seatPos(spot, k);
+    this.seat(spot, k, null); this.heroSeat = null;
+    this.heroA = this.stage.add(`<svg x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="${this.o.uniform}" style="${this.o.uniformVars ?? ''}" overflow="visible">${DRAW[this.o.hero === 'f' ? 'heroF' : 'heroM']()}<g class="heroTray"></g></svg>`, p.x, p.y - 12, { flipable: true });
+  }
+  private mokaSeat: { spot: number; k: number } | null = null;
+  /** Moka saute sur une chaise. */
+  async mokaSit(spot: number, k: number, state = 'idle') {
+    const p = this.seatPos(spot, k);
+    await this.walkMoka(p.x, p.y - 12, [{ x: p.x, y: LANE }]);
+    this.mokaA.el.style.display = 'none'; this.mokaSeat = { spot, k };
+    this.seatPet(spot, k, moka(), state, this.o.outfitVars?.moka ?? '');
+  }
+  mokaSeatState(state: string) { if (this.mokaSeat) (this.$(`seat-${this.mokaSeat.spot}-${this.seatOf(this.mokaSeat.spot, this.mokaSeat.k)}`).firstElementChild as SVGElement)?.setAttribute('data-state', state); }
+  /** Moka descend de sa chaise et retourne sur son coussin. */
+  async mokaHome() {
+    if (this.mokaSeat) { const { spot, k } = this.mokaSeat; this.seat(spot, k, null); this.mokaSeat = null; this.mokaA.el.style.display = ''; }
+    this.setMoka('idle');
+    await this.walkMoka(CUSHION.x, CUSHION.y, [{ x: this.mokaA.x, y: LANE }, { x: CUSHION.x, y: LANE }]);
+    this.releaseMoka();
+  }
+
+  /* ---------- La nouvelle recrue, derrière le comptoir à côté du héros (niveau 6) ---------- */
+  setHelper(inner: string | null, x = 560) {
+    this.$('behind').querySelector('#helperSvg')?.remove();
+    if (!inner) return;
+    this.$('behind').insertAdjacentHTML('beforeend', `<svg id="helperSvg" class="nobubble" x="${x}" y="236" width="150" height="195" viewBox="0 0 200 260" data-state="idle" overflow="visible">${inner}</svg>`);
+  }
+
+  /** Quelqu'un sort de derrière le comptoir et rentre chez lui par la porte. */
+  async walkOut(inner: string) {
+    const e = Room.COUNTER_END;
+    const a = this.stage.add(`<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="walk" overflow="visible">${inner}</svg>`, e.x, e.y, { flipable: true });
+    await this.stage.walk(a, [{ x: DOOR.x - 30, y: LANE }, { x: DOOR.x, y: DOOR.y + 10 }], 175);
+    a.el.style.transition = 'opacity .5s'; a.el.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 500)); this.stage.remove(a);
+  }
+
+  /* ---------- Client qui attend trop longtemps : un biscuit offert, ou on le laisse partir content ---------- */
+  private alerts: Cust[] = [];
+  private alertEl: HTMLElement | null = null;
+  private checkWaiting(c: Cust) {
+    if (c.alerted || c.patience > 25 || (c.state !== 'ready' && c.state !== 'ordered')) return;
+    c.alerted = true; this.alerts.push(c); this.showAlert();
+  }
+  private showAlert(): void {
+    if (this.alertEl || !this.alerts.length) return;
+    const c = this.alerts[0];
+    if (!this.custs.includes(c) || (c.state !== 'ready' && c.state !== 'ordered')) { this.alerts.shift(); return this.showAlert(); }
+    const what = c.state === 'ordered' ? `their ${c.recipe!.name}` : 'someone to take their order';
+    music.sfx('bell');
+    const el = h(`<div class="wait-alert" role="alert"><b>⏳ Table ${c.table + 1} is getting impatient…</b><span>They are waiting for ${what}.</span>
+      <div><button class="btn" data-a="cookie">🍪 Give a free cookie</button><button class="btn light" data-a="go">👋 Let them go, smiling</button></div></div>`);
+    el.addEventListener('click', e => {
+      const b = (e.target as HTMLElement).closest('button'); if (!b) return;
+      if (b.dataset.a === 'cookie') this.cookieFor(c); else this.letGo(c);
+      el.remove(); this.alertEl = null; this.alerts.shift(); this.showAlert();
+    });
+    ui().appendChild(el); this.alertEl = el;
+  }
+  /** Un biscuit offert : la patience remonte, le client sourit. */
+  cookieFor(c: Cust) {
+    if (!this.custs.includes(c)) return;
+    c.patience = 75; this.updateHearts(c); music.sfx('twinkle');
+    const t = SPOTS[c.table]; this.fx(t.cx, t.cy - 300, '🍪 Thank you! ♡', '#c0506a');
+  }
+  /** Le client part sans attendre la fin de la commande, mais content : il compte comme satisfait (sans payer). */
+  letGo(c: Cust) {
+    if (!this.custs.includes(c) || (c.state !== 'ready' && c.state !== 'ordered')) return;
+    const rest = Math.max(1, (c.state === 'ordered' ? c.qty : c.members.length) - c.servedCups);
+    this.served += rest; c.servedCups += rest; this.onServed?.(this.served);
+    const t = SPOTS[c.table]; this.fx(t.cx, t.cy - 300, 'See you next time ♡', '#4f8a6a');
+    this.leave(c);
+  }
+
   /* ---------- Le héros sort de derrière le comptoir (niveau 6) ---------- */
   private heroA: Actor | null = null;
   /** Bout du comptoir, côté salle : là où le héros entre et sort. */
-  static readonly COUNTER_END = { x: 960, y: 500 };
+  static readonly COUNTER_END = { x: 750, y: 500 };
+  /** Devant le comptoir, au milieu : là où le héros prend le plateau. */
+  static readonly COUNTER_FRONT = { x: 560, y: 500 };
   /** Le héros quitte le comptoir et marche jusqu'à (x, y). `tray` : ce qu'il porte (svg dans le repère 200 × 260). */
   async heroWalk(x: number, y: number, via: { x: number; y: number }[] = [], tray = '') {
     if (!this.heroA) {
@@ -541,6 +647,7 @@ export class Room {
   heroFace(dir: 1 | -1) { if (this.heroA) { this.heroA.flip = dir; this.heroA.el.setAttribute('transform', this.heroA.el.getAttribute('transform')!.replace(/scale\((-?[\d.]+) /, (_, k) => `scale(${Math.abs(+k) * dir} `)); } }
   /** Le héros retourne derrière le comptoir. */
   async heroHome() {
+    if (this.heroSeat) this.heroUp();
     if (!this.heroA) return;
     const e = Room.COUNTER_END;
     await this.stage.walk(this.heroA, [{ x: this.heroA.x, y: LANE }, e], 190);
@@ -590,7 +697,7 @@ export class Room {
   cuddleMoka() { if (this.mokaBusy < 90) { this.setMoka('cuddle'); this.mokaBusy = 2.4; this.fx(this.mokaA.x, this.mokaA.y - 170, '♥', '#e8586a'); } }
 
   hide(v: boolean) { this.el.style.visibility = v ? 'hidden' : 'visible'; }
-  destroy() { clearInterval(this.timer); clearInterval(this.chatTimer); this.stage.destroy(); this.el.remove(); }
+  destroy() { this.alertEl?.remove(); clearInterval(this.timer); clearInterval(this.chatTimer); this.stage.destroy(); this.el.remove(); }
 }
 
 /* ---------- Couvertures des livres et magazines (tournées vers le joueur) ---------- */

@@ -20,16 +20,14 @@ import { recipeById } from './logic/recipes';
 import { planFor, LEVEL2_DAY, LEVEL3_DAY, LEVEL4_DAY, LEVEL5_DAY, LEVEL6_DAY, type DayPlan } from './logic/level1';
 import { TeaStation, newTeaBench, leilaLetter } from './ui/teaStation';
 import { teaNight } from './ui/teaNight';
-import { writeJobPost, swipeCVs, pickShortlist, gather, interview, interviewBoard, phoneCall, firstDay, welcomeCard, ROLE_SPOT, type HireCtx } from './ui/hiring';
+import { writeJobPost, swipeCVs, pickShortlist, gather, interview, interviewBoard, phoneCall, firstDay, teamMeeting, welcomeCard, ROLE_SPOT, HELPER_X, type HireCtx } from './ui/hiring';
 import { bedroom, member, candidatePortrait } from './ui/hireArt';
 import { candById, type Interview, type Role, type Candidate } from './logic/hiring';
-import type { Member } from './ui/room';
 import { BakeryStation, newBakeBench, crewNote } from './ui/bakeryStation';
 import { bakeNight, basketArt, BASKET } from './ui/bakeNight';
 import { crewNight } from './ui/crew';
 import { CREW, isMouse, type MouseWho } from './logic/outfits';
-import { biscuit, grandma, customer } from './art/cast.js';
-const customerSvg = (m: Member) => `${customer(m.g, m.v)}${m.extra ?? ''}`;
+import { biscuit, grandma } from './art/cast.js';
 import { music } from './audio/music';
 
 let ext: Exterior | null = null;
@@ -400,11 +398,20 @@ async function playLevel6() {
   await wipe(() => { room.destroy(); room = cafeRoom('day'); });
   const role = await firstDay(room, hire, ctx);
   room.destroy();
-  const result = await juiceService(LEVEL6_DAY, `First day with <b>${hire.name}</b>! Every <b>${ROLE_SPOT[role].label}</b> order is theirs. You take care of everything else.`, undefined, true, true, { role, name: hire.name, m: member(hire) });
+  const dress = member(hire, true).svg;
+  const result = await juiceService(LEVEL6_DAY, `First day with <b>${hire.name}</b>! Every <b>${ROLE_SPOT[role].label}</b> order is theirs. You take care of everything else.`, undefined, true, true, { role, name: hire.name, svg: dress });
   S.coins = result.coins; S.totalServed += result.served;
   result.room.tip(null);
-  await talk([H(`We did it! ${hire.name}, you were amazing today.`, S.uniform), C(hire, 'Thank you! Same time tomorrow? I can\'t wait ♡', 'coffee')]);
-  result.room.destroy();
+  await talk([H(`We did it! ${hire.name}, you were amazing today.`, S.uniform), C(hire, 'Thank you! I\'ll hang my apron here… See you tomorrow morning! Bye bye ♡', 'coffee')]);
+  // la recrue rentre chez elle (sans son tablier)
+  result.room.setHelper(null);
+  await result.room.walkOut(member(hire).svg);
+  // le soir : réunion autour d'une tasse de thé avec Grand-mère, Moka, Biscuit et la Crumb Crew
+  await wipe(() => { result.room.destroy(); room = cafeRoom('night'); });
+  music.setMood('night');
+  await teamMeeting(room, hire, result.helped, ctx);
+  room.destroy();
+  music.setMood('day');
   S.phase = 'done'; persist();
   await welcomeCard(hire, pay, post, S.name, role, result.served, result.helped);
   await wipe(() => { clear(); pixel(false); });
@@ -561,7 +568,7 @@ function trackStats(room: Room) {
 }
 
 /** Une journée café + bar à jus (niveaux 2 et 3). `setup` ajoute les règles propres au niveau. */
-async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void, bakery = false, tea = false, helper?: { role: Role; name: string; m: Member }): Promise<{ room: Room; served: number; earned: number; coins: number; helped: number }> {
+async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) => void, bakery = false, tea = false, helper?: { role: Role; name: string; svg: string }): Promise<{ room: Room; served: number; earned: number; coins: number; helped: number }> {
   const start = S.coins;
   const room = new Room({
     hero: S.hero, uniform: 'espresso', uniformVars: heroVars(), mode: 'day', dog: 'patrol', day: 1, goal: plan.goal, coins: S.coins,
@@ -609,17 +616,21 @@ async function juiceService(plan: DayPlan, intro: string, setup?: (room: Room) =
   // niveau 6 : la nouvelle recrue s'occupe de toutes les commandes de son poste
   let helped = 0, helpTimer = 0;
   if (helper) {
-    const spot = ROLE_SPOT[helper.role];
-    const who = room.stageRef.add(`<svg class="nobubble" x="-75" y="-188" width="150" height="195" viewBox="0 0 200 260" data-state="idle" overflow="visible">${customerSvg(helper.m)}</svg>`, spot.x, spot.y, { flipable: true });
+    // derrière le comptoir, à côté du héros
+    const hx = HELPER_X[helper.role];
+    room.setHelper(helper.svg, hx);
+    const atMyStation = () => helper.role === 'coffee' ? station instanceof Station : helper.role === 'juice' ? station instanceof JuiceStation : helper.role === 'pastry' ? station instanceof BakeryStation : station instanceof TeaStation;
     const isMine = (k: string | undefined) => helper.role === 'coffee' ? !k : k === helper.role;
     const mine = (c: Cust) => isMine(c.recipe?.kind);
     // une commande sur deux est pour son poste : elle a vraiment du travail
     const theirs = plan.recipes.filter(id => isMine(recipeById(id).kind));
     if (theirs.length) room.forceOrder = n => n % 2 === 0 ? theirs[Math.floor(n / 2) % theirs.length] : null;
     helpTimer = window.setInterval(() => {
+      // on ne lui « vole » pas une commande que le joueur est en train de préparer à la même station
+      if (atMyStation()) return;
       const c = room.ordered().find(mine); if (!c) return;
       const r = c.recipe!; room.serve(c.id); helped++;
-      music.sfx('bell'); room.fx(who.x, who.y - 210, `${helper.name}: ${r.name} ♡`, '#4f8a6a');
+      music.sfx('bell'); room.fx(hx + 75, 230, `${helper.name}: ${r.name} ♡`, '#4f8a6a');
       room.drawHud();
     }, 6500);
   }

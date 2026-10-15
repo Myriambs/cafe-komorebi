@@ -5,8 +5,7 @@
 import { P, sparkle, biscuit } from '../art/cast.js';
 import { h, ui, sleep, charSvg, DRAW, type CharId } from './dom';
 import { say, talk, type Line } from './dialogue';
-import type { Room } from './room';
-import { SPOTS } from './room';
+import { Room, SPOTS } from './room';
 import type { Actor } from './actors';
 import { teaItemArt } from './teaStation';
 import { candidatePortrait, member } from './hireArt';
@@ -187,34 +186,43 @@ export function pickShortlist(loved: Set<CandId>, post: JobPost): Promise<CandId
 /* ---------- Tout le monde autour de la table, une douceur chacun ---------- */
 const TABLE = 0;
 const T0 = SPOTS[TABLE], TOP = T0.cy + 18;
-/** Le héros debout derrière la chaise de droite pour les entretiens ; derrière la table pour trier les CV. */
-const HERO_INTERVIEW = { x: T0.cx + 128, y: T0.cy - 8 }, HERO_DESK = { x: T0.cx + 20, y: T0.cy - 64 };
-const MOKA_CHAIR = { x: T0.cx - 116, y: T0.cy + 4 }, DOG_SPOT = { x: T0.cx - 230, y: T0.cy + 40 };
+/** Places autour de la table 1 : 0 = chaise de gauche, 1 = chaise de droite, 2 = chaise du fond. */
+const LEFT = 0, RIGHT = 1, BACK = 2;
+const DOG_SPOT = { x: T0.cx - 250, y: T0.cy + 60 }, MOKA_BOWL = { x: T0.cx - 150, y: T0.cy + 120 };
 const laptopArt = (x: number, y: number) => `<g transform="translate(${x} ${y})"><path d="M-22 0 L-18 -26 L18 -26 L22 0Z" fill="#dfe3e8" stroke="${P.ink}" stroke-width="1.6"/><path d="M-16 -3 L-13 -23 L13 -23 L16 -3Z" fill="#cfe9f6"/><rect x="-10" y="-19" width="14" height="3" rx="1.5" fill="#fffaf2"/><rect x="-10" y="-13" width="18" height="2.4" rx="1.2" fill="#fffaf2" opacity=".8"/><path d="M-26 0 L26 0 L28 3 L-28 3Z" fill="#b8bec8" stroke="${P.ink}" stroke-width="1.4"/></g>`;
 const fishCookie = (x: number, y: number) => `<g transform="translate(${x} ${y})"><ellipse cx="0" cy="5" rx="14" ry="4" fill="#fffaf2" stroke="${P.ink}" stroke-width="1.2"/><path d="M-9 0 Q-2 -7 7 -2 L12 -6 L12 4 L7 1 Q-2 6 -9 0Z" fill="#e8a24a" stroke="${P.ink}" stroke-width="1.1"/><circle cx="-5" cy="-1" r="1" fill="${P.ink}"/></g>`;
-const boneCookie = (x: number, y: number) => `<g transform="translate(${x} ${y})"><ellipse cx="0" cy="0" rx="30" ry="9" fill="#e86a5f" stroke="${P.ink}" stroke-width="2"/><ellipse cx="0" cy="-4" rx="22" ry="5.5" fill="#f3e1b5"/><path d="M-12 -6 L12 -6 M-12 -6 m-3 -2 a3 3 0 1 0 0 4 M-12 -6 m-3 2 a3 3 0 1 0 0 -4 M12 -6 m3 -2 a3 3 0 1 1 0 4 M12 -6 m3 2 a3 3 0 1 1 0 -4" stroke="#c9915e" stroke-width="5" stroke-linecap="round" fill="none"/></g>`;
-/** Le matin et le soir : le héros derrière la table avec l'ordinateur, Moka sur une chaise, Biscuit à côté, les souris sur la table. */
-export async function gather(room: Room, ctx: HireCtx) {
-  const stage = room.stageRef;
-  const mice = CREW.map((w, i) => {
+const bowlArt = (x: number, y: number, col: string, treat: string) => `<ellipse cx="${x}" cy="${y}" rx="30" ry="9" fill="${col}" stroke="${P.ink}" stroke-width="2"/><ellipse cx="${x}" cy="${y - 4}" rx="22" ry="5.5" fill="#f3e1b5"/>${treat}`;
+const boneTreat = (x: number, y: number) => `<path d="M${x - 12} ${y - 6} L${x + 12} ${y - 6}" stroke="#c9915e" stroke-width="5" stroke-linecap="round"/>${[[-14, -9], [-14, -3], [14, -9], [14, -3]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="3.4" fill="#c9915e"/>`).join('')}`;
+const waterTreat = (x: number, y: number) => `<ellipse cx="${x}" cy="${y - 4}" rx="22" ry="5.5" fill="#cfe9f6"/><path d="M${x - 10} ${y - 5} q5 -2 10 0" stroke="#fff" stroke-width="2" fill="none"/>`;
+/** Les souris sur la table, qui mangent avec leurs petites mains. */
+function miceOnTable(room: Room, ctx: HireCtx) {
+  return CREW.map((w, i) => {
     const dx = [-64, -40, 36, 62][i], dy = i % 2 ? 14 : 0;
-    return addDepth(room, T0.cy + 10.5 + i / 100, `<g transform="translate(${T0.cx + dx} ${TOP + dy}) scale(.72)"><svg x="-40" y="-101" width="80" height="104" viewBox="0 0 200 260" data-state="${i % 2 ? 'nibble' : 'cheer'}" style="${ctx.varsOf(w)}" overflow="visible">${DRAW[w]()}</svg></g>`);
+    return addDepth(room, T0.cy + 10.5 + i / 100, `<g transform="translate(${T0.cx + dx} ${TOP + dy}) scale(.72)"><svg x="-40" y="-101" width="80" height="104" viewBox="0 0 200 260" data-state="${i % 2 ? 'sip' : 'nibble'}" style="${ctx.varsOf(w)}" overflow="visible">${DRAW[w]()}</svg></g>`);
   });
-  const table = addDepth(room, T0.cy + 10.3, `${laptopArt(T0.cx - 4, TOP + 8)}${fishCookie(T0.cx - 74, TOP + 18)}${[-48, 50].map(dx => `<g transform="translate(${T0.cx + dx} ${TOP + 22}) scale(.26)">${teaItemArt('lemonCake', 0, 0)}</g>`).join('')}${sparkle(T0.cx + 30, TOP - 34, 6)}`);
-  const bowl = addDepth(room, DOG_SPOT.y + 12, boneCookie(DOG_SPOT.x + 4, DOG_SPOT.y + 16));
+}
+/** Biscuit vient manger à côté de la table. */
+async function dogEats(room: Room, ctx: HireCtx, x: number, y: number, treat: string) {
+  const stage = room.stageRef;
+  const bowl = addDepth(room, y + 14, bowlArt(x + 6, y + 18, '#e86a5f', treat));
   const dog: Actor = stage.add(`<svg x="-70" y="-171" width="140" height="182" viewBox="0 0 200 260" data-state="walk" style="${ctx.dogVars}" overflow="visible">${biscuit()}</svg>`, 1335, 380, { flipable: true, base: 0.8 });
   room.setDog('none');
-  await Promise.all([
-    room.heroWalk(HERO_DESK.x, HERO_DESK.y, [{ x: HERO_DESK.x, y: 520 }]),
-    room.walkMoka(MOKA_CHAIR.x, MOKA_CHAIR.y, [{ x: 1334, y: 520 }, { x: MOKA_CHAIR.x, y: 520 }]).then(() => room.setMoka('munch')),
-    stage.walk(dog, [{ x: 1300, y: 520 }, { x: DOG_SPOT.x, y: 520 }, DOG_SPOT], 230).then(() => { dog.flip = 1; (dog.inner.firstElementChild as SVGElement).setAttribute('data-state', 'wag'); })
+  await stage.walk(dog, [{ x: 1300, y: 520 }, { x: x + 60, y: 520 }, { x: x + 46, y }], 230);
+  dog.flip = -1; (dog.inner.firstElementChild as SVGElement).setAttribute('data-state', 'eatdown');
+  return () => { bowl.remove(); stage.remove(dog); room.setDog('patrol'); };
+}
+/** Le matin (et le soir) : le héros et Moka assis à la table avec l'ordinateur, Biscuit qui mange, les souris sur la table. */
+export async function gather(room: Room, ctx: HireCtx) {
+  const mice = miceOnTable(room, ctx);
+  const table = addDepth(room, T0.cy + 10.3, `${laptopArt(T0.cx - 4, TOP + 8)}${fishCookie(T0.cx - 84, TOP + 20)}${[-48, 50].map(dx => `<g transform="translate(${T0.cx + dx} ${TOP + 22}) scale(.26)">${teaItemArt('lemonCake', 0, 0)}</g>`).join('')}${sparkle(T0.cx + 30, TOP - 34, 6)}`);
+  const [, , undog] = await Promise.all([
+    room.heroSit(TABLE, BACK),
+    room.mokaSit(TABLE, LEFT, 'munch'),
+    dogEats(room, ctx, DOG_SPOT.x, DOG_SPOT.y, boneTreat(DOG_SPOT.x + 6, DOG_SPOT.y + 18))
   ]);
-  room.heroFace(-1);
   return async () => {
-    mice.forEach(g => g.remove()); table.remove(); bowl.remove();
-    stage.remove(dog); room.setDog('patrol');
-    room.setMoka('idle'); room.releaseMoka();
-    await room.heroHome();
+    mice.forEach(g => g.remove()); table.remove(); undog();
+    await Promise.all([room.mokaHome(), room.heroHome()]);
   };
 }
 
@@ -225,12 +233,12 @@ export async function interview(room: Room, c: Candidate, ctx: HireCtx, n: numbe
   const m = member(c);
   await room.guestIn(m, TABLE, 0);
   await talk([C(c, n === 0 ? `Hello! I'm ${c.name}. I'm here for the interview… I'm a little early.` : `Good afternoon! I'm ${c.name}, nice to meet you.`), H(`Welcome, ${c.name}! Please sit down, I'll bring you something ♡`)]);
-  // le héros va chercher le plateau au comptoir, puis le pose sur la table
-  await room.heroWalk(980, 500);
-  await sleep(300); music.sfx('pour');
-  await room.heroWalk(HERO_INTERVIEW.x, HERO_INTERVIEW.y, [{ x: HERO_INTERVIEW.x, y: 520 }], trayArt);
-  room.heroFace(-1);
-  room.heroCarry('');
+  // le héros va prendre le plateau au comptoir, l'apporte, puis s'assoit en face
+  room.heroUp();
+  const f = Room.COUNTER_FRONT;
+  await room.heroWalk(f.x, f.y, [{ x: room.seatAt(TABLE, RIGHT).x, y: 520 }]);
+  await sleep(400); music.sfx('pour');
+  await room.heroSit(TABLE, RIGHT, trayArt);
   const snack = addDepth(room, T0.cy + 10.2, `<g transform="translate(${T0.cx + 30} ${TOP + 10}) scale(.32)">${teaItemArt('cookies', 0, 0)}</g>
     <g transform="translate(${T0.cx - 30} ${TOP + 8})"><ellipse cx="0" cy="6" rx="12" ry="3.4" fill="#fffaf2" stroke="${P.ink}" stroke-width="1.4"/><path d="M-7 -6 L7 -6 L6 5 L-6 5Z" fill="#fffaf2" stroke="${P.ink}" stroke-width="1.4"/><ellipse cx="0" cy="-6" rx="7" ry="2" fill="#c99a6e"/>
     <g style="animation:steam 2s infinite"><path d="M-2 -10 q-4 -6 0 -12" fill="none" stroke="#fffaf2" stroke-width="2" stroke-linecap="round"/></g></g>`);
@@ -317,6 +325,8 @@ const TOUR: { role: Role; at: { x: number; y: number }; hero: string; reply: (c:
   { role: 'pastry', at: { x: 100, y: 380 }, hero: "Behind this door, the bakery. Grandma's recipe tin lives there.", reply: c => c.traits.includes('baking') ? 'A real oven… may I bake tomorrow? Please?' : 'Croissants from scratch? Wow.' },
   { role: 'tea', at: { x: 160, y: 300 }, hero: 'And next to it, the little tea room: teas from Leila in Tunis, cakes and cookies.', reply: () => 'A tea room too? This café is a treasure box.' }
 ];
+/** Derrière le comptoir : à gauche du héros pour le café, à droite sinon. */
+export const HELPER_X: Record<Role, number> = { coffee: 236, juice: 548, pastry: 548, tea: 548 };
 export const preferredRole = (c: Candidate): Role => c.traits.includes('baking') ? 'pastry' : c.traits.includes('coffee') ? 'coffee' : c.traits.includes('kind') ? 'tea' : 'juice';
 export async function firstDay(room: Room, c: Candidate, ctx: HireCtx): Promise<Role> {
   const { H, C, M, NARR } = lines(ctx);
@@ -327,8 +337,13 @@ export async function firstDay(room: Room, c: Candidate, ctx: HireCtx): Promise<
   a.flip = -1;
   await talk([
     C(c, `Good morning! I'm here! I didn't sleep at all, I was too excited.`, 'coffee'),
-    H(`Welcome to Café Komorebi, ${c.name}! Here is your apron… and your name tag ♡`),
-    C(c, `"${c.name.toUpperCase()}"… it's real! Thank you!`, 'coffee'),
+    H(`Welcome to Café Komorebi, ${c.name}! Here is your apron… and your name tag ♡`)
+  ]);
+  // la recrue enfile son tablier
+  (a.inner.firstElementChild as SVGElement).innerHTML = member(c, true).svg;
+  music.sfx('twinkle'); room.fx(a.x, a.y - 210, '✨ ♡ ✨', '#c47a2c');
+  await talk([
+    C(c, `"${c.name.toUpperCase()}"… it's real! How do I look?`, 'coffee'),
     H(`Come, I'll show you around before the first customers arrive.`)
   ]);
   for (const t of TOUR) {
@@ -356,10 +371,47 @@ export async function firstDay(room: Room, c: Candidate, ctx: HireCtx): Promise<
     C(c, k === 0 ? 'Yay! I won\'t let you down!' : 'Okay! A new challenge. I like it!', 'coffee'),
     H(`Every ${role === 'coffee' ? 'coffee' : role === 'juice' ? 'juice' : role === 'pastry' ? 'pastry' : 'tea'} order will be yours. I'll take care of the rest. Let's open the café together ♡`)
   ]);
-  const p = ROLE_SPOT[role];
-  await room.stageRef.walk(a, [{ x: a.x, y: 520 }, { x: p.x, y: 520 }, p], 175);
+  // derrière le comptoir, à côté du héros
+  const e = Room.COUNTER_END;
+  await room.stageRef.walk(a, [{ x: a.x, y: 520 }, e], 175);
   room.stageRef.remove(a);
+  room.setHelper(member(c, true).svg, HELPER_X[role]);
   return role;
+}
+
+/* ---------- Le soir du premier jour : réunion avec Grand-mère, thé et biscuits ---------- */
+export async function teamMeeting(room: Room, c: Candidate, helped: number, ctx: HireCtx) {
+  const { H, M, B, R, NARR } = lines(ctx);
+  const G = (text: string, state = 'tea'): Line => ({ who: 'grandma', name: ctx.grandmaName, state, text, right: true, vars: ctx.grandmaVars });
+  room.el.querySelector('rect.mn.tint')?.setAttribute('opacity', '.45');
+  const mice = miceOnTable(room, ctx);
+  const table = addDepth(room, T0.cy + 10.3, `<g transform="translate(${T0.cx} ${TOP + 6}) scale(.42)">${teaItemArt('chamomile', -50, 0)}${teaItemArt('blackTea', 50, 0)}${teaItemArt('cookies', 0, 26)}</g>${sparkle(T0.cx - 70, TOP - 20, 7)}`);
+  room.seatPerson(TABLE, RIGHT, DRAW.grandma(), 'tea', ctx.grandmaVars, '#7a5a6a');
+  const mbowl = addDepth(room, MOKA_BOWL.y + 2, bowlArt(MOKA_BOWL.x, MOKA_BOWL.y, '#7fa8d8', waterTreat(MOKA_BOWL.x, MOKA_BOWL.y)));
+  const [, , undog] = await Promise.all([
+    room.heroSit(TABLE, BACK),
+    room.walkMoka(MOKA_BOWL.x + 34, MOKA_BOWL.y - 10, [{ x: 1334, y: 520 }, { x: MOKA_BOWL.x + 34, y: 520 }]).then(() => { room.setMoka('munch'); room.moka.flip = -1; }),
+    dogEats(room, ctx, DOG_SPOT.x, DOG_SPOT.y, boneTreat(DOG_SPOT.x + 6, DOG_SPOT.y + 18))
+  ]);
+  music.sfx('twinkle');
+  await talk([
+    NARR(`That evening, after ${c.name} goes home, everyone gathers around table 1: tea, biscuits, water bowls… and tiny hands full of crumbs.`),
+    G(`So, dear… how was ${c.name}'s first day?`),
+    H(`${helped ? `${c.name} served ${helped} order${helped > 1 ? 's' : ''} all alone!` : `${c.name} learned so much today.`} And everyone smiled the whole day.`, 'city'),
+    G('I watched from the window. Kind hands, a warm heart. Just like the sign said.'),
+    M(c.pets.moka, 'munch'),
+    B(c.pets.biscuit, 'eatdown'),
+    R('captain', c.pets.crew, 'nibble'),
+    H('Wait… Grandma, you can SEE them?!', 'city'),
+    G('My ears are old, dear, but my eyes are fine. Who do you think has left them a little cheese for forty years?'),
+    G('And yes… I pretended not to know who "C.C." was. You looked so happy finding out ♡'),
+    R('nibbles', `Can ${c.name} have tea with us one day? …When they are ready to know?`, 'cheer'),
+    G('One day, little one. Every good secret waits for the right person.'),
+    NARR(`And so Café Komorebi grew a little bigger: one more apron, one more name tag, and one more friend.`)
+  ]);
+  mice.forEach(g => g.remove()); table.remove(); mbowl.remove(); undog();
+  room.clearSeat(TABLE, RIGHT);
+  await Promise.all([room.heroHome(), room.mokaHome()]);
 }
 
 /* ---------- Fin du niveau ---------- */

@@ -448,3 +448,10 @@ body.pixel .art .artText { display: none; }
 .qa span { font-style: italic; } .qa span.good { color: #3e6a4e; } .qa span.bad { color: #a0404a; }
 .note .btn { margin-top: 6px; align-self: center; }
 @media (max-width: 760px) { .board-grid { grid-template-columns: 1fr; } .note { transform: none; } }
+/* assis sur une chaise : on cache les jambes debout (des jambes pliées sont dessinées devant le coussin) */
+.seated .hlegL, .seated .hlegR, .seated .legL, .seated .legR { display: none; }
+/* client impatient : biscuit offert ou on le laisse partir */
+.wait-alert { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); z-index: 30; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; padding: 12px 14px; background: #fffaf2; border: 3px solid #3b2838; border-radius: 18px; box-shadow: 0 8px 20px rgba(59, 40, 56, .3); font-family: Nunito, sans-serif; color: #3b2838; text-align: center; animation: popIn .35s ease-out; }
+.wait-alert b { display: block; font-size: 16px; } .wait-alert span { display: block; margin: 2px 0 8px; font-size: 14px; font-weight: 700; color: #8a5a4a; }
+.wait-alert div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.wait-alert .btn { font-size: 14px; padding: 8px 14px; }
