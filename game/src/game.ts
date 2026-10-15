@@ -269,7 +269,7 @@ async function morning(day: number, plan: DayPlan = planFor(day), label = `Day $
   const hero = e.addChar(S.hero === 'f' ? 'heroF' : 'heroM', { x: START[0], z: START[2], ry: -Math.PI / 2 });
   const dog = plan.dogMorning === 'none' ? null : e.addChar('biscuit', { x: 4.25, z: 1.0, ry: 0.3, named: plan.dogMorning === 'sleeping', sleeping: plan.dogMorning === 'sleeping' });
   const banner = h(`<div class="banner">${label}</div>`);
-  const hint = h(`<div class="hint">Use the <b>arrow keys</b> to walk to the café, scroll to zoom, or <button class="btn">Walk to the café</button></div>`);
+  const hint = h(`<div class="hint"><span>Use the <b>arrow keys</b> to walk to the café, scroll to zoom, or</span> <button class="btn">Walk to the café</button></div>`);
   ui().append(banner, hint);
   // les flèches pilotent le héros jusqu'au trottoir du café
   const keys = { up: false, down: false, left: false, right: false };

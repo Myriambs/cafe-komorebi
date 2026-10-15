@@ -26,7 +26,7 @@ button { font-family: inherit; }
 
 /* bandeau / consignes */
 .banner { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 22px; background: rgba(253, 245, 232, .95); border: 2.5px solid var(--ink); border-radius: 999px; font-weight: 800; white-space: nowrap; }
-.hint { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; padding: 12px 14px 12px 22px; background: rgba(253, 245, 232, .96); border: 2.5px solid var(--ink); border-radius: 999px; font-weight: 700; }
+.hint { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; padding: 12px 14px 12px 22px; background: rgba(253, 245, 232, .96); border: 2.5px solid var(--ink); border-radius: 999px; font-weight: 700; white-space: nowrap; }
 .skip { position: absolute; top: 18px; right: 18px; }
 
 /* dialogue façon visual novel */

@@ -9,54 +9,91 @@ const L = (w = 2) => `stroke="${LN}" stroke-width="${w}" stroke-linejoin="round"
 const BOWL = { x: 1262, y: 690 };
 const ARCH = { x: 1500, y: 646 };
 
+// Arrière du café au crépuscule (réf. interior/backallay.png) : mur pêche, toit d'ardoise,
+// ciel violet-rose, nuages, arbres ronds, buissons et fleurs. Pas de ruelle sombre.
+const BUSH = (x: number, y: number, r: number, c = '#5f7f4c') =>
+  `<circle cx="${x}" cy="${y - r}" r="${r}" fill="${c}" ${L(2.5)}/><path d="M${x - r * .55} ${y - r * 1.35} Q${x - r * .2} ${y - r * 1.75} ${x + r * .25} ${y - r * 1.55}" fill="none" stroke="#9cb874" stroke-width="${r * .14}" stroke-linecap="round" opacity=".7"/>`;
+const TREE = (x: number, y: number, r: number, c = '#56763f') =>
+  `<path d="M${x - 9} ${y} L${x - 6} ${y - r * 1.6} L${x + 6} ${y - r * 1.6} L${x + 9} ${y}Z" fill="#8a5a42" ${L(2)}/>` + BUSH(x, y - r * 1.25, r, c);
+const CLOUD = (x: number, y: number, s: number) =>
+  `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-170 40 Q-180 -10 -120 -14 Q-110 -70 -40 -60 Q0 -110 70 -70 Q140 -80 140 -20 Q200 -10 180 40Z" fill="#e9a891"/>
+   <path d="M-170 30 Q-180 -20 -120 -24 Q-110 -80 -40 -70 Q0 -120 70 -80 Q140 -90 140 -30 Q200 -20 180 30Z" fill="#fbd3b4"/></g>`;
+
 function alley() {
-  const bricks: string[] = [];
-  for (let y = 150; y < 640; y += 26) for (let x = ((y - 150) / 26) % 2 ? -560 : -520; x < 2140; x += 80) bricks.push(`<rect x="${x}" y="${y}" width="78" height="24" rx="3" fill="#a27d76" ${L(1)} opacity=".55"/>`);
-  const stones: string[] = [];
-  for (let i = 0; i < 70; i++) stones.push(`<ellipse cx="${-480 + (i * 131) % 2560}" cy="${668 + (i * 47) % 500}" rx="${26 + (i % 3) * 8}" ry="9" fill="#6b6882" ${L(1)} opacity=".6"/>`);
+  const shingles: string[] = [];
+  for (let y = 112; y < 206; y += 16) shingles.push(`<path d="M${-470 - (y - 112) * .3} ${y} L${1236 + (y - 112) * .28} ${y}" stroke="#4d4a68" stroke-width="1.5" opacity=".6"/>`);
+  for (let y = 112, r = 0; y < 206; y += 16, r++) for (let x = -440 + (r % 2) * 22; x < 1240; x += 44) shingles.push(`<path d="M${x} ${y} L${x} ${y + 16}" stroke="#4d4a68" stroke-width="1" opacity=".35"/>`);
+  const tiles: string[] = [];
+  for (let x = -500; x < 2100; x += 64) tiles.push(`<path d="M${x} 640 L${x - 14} 700" stroke="#a68f8a" stroke-width="1.5"/>`);
+  const flowers: string[] = [];
+  for (let i = 0; i < 60; i++) {
+    const x = -460 + (i * 137) % 2540, y = 726 + (i * 53) % 170, c = ['#f4a3b4', '#ffe08a', '#fdf5e8', '#f6b38a'][i % 4];
+    flowers.push(`<path d="M${x} ${y} L${x} ${y - 20} M${x} ${y - 8} Q${x - 8} ${y - 14} ${x - 10} ${y - 8}" fill="none" stroke="#5e7a3e" stroke-width="2.5"/>${[0, 72, 144, 216, 288].map(a => `<circle cx="${x + 6 * Math.cos(a * Math.PI / 180)}" cy="${y - 22 + 6 * Math.sin(a * Math.PI / 180)}" r="4.5" fill="${c}"/>`).join('')}<circle cx="${x}" cy="${y - 22}" r="3" fill="#f3c55a"/>`);
+  }
+  const stars = [[120, 40], [300, 90], [520, 30], [760, 60], [980, 30], [1180, 80], [1480, 40], [-200, 60], [1800, 70], [-60, 100], [1640, 20], [420, 70]];
   return `<g class="art">
   <defs>
-    <linearGradient id="nsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1440"/><stop offset="1" stop-color="#2c3f82"/></linearGradient>
-    <radialGradient id="doorLight"><stop offset="0" stop-color="#ffd59a" stop-opacity=".85"/><stop offset="1" stop-color="#ffb36b" stop-opacity="0"/></radialGradient>
-    <linearGradient id="archDark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c1a28"/><stop offset="1" stop-color="#2e2a40"/></linearGradient>
+    <linearGradient id="nsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3580"/><stop offset=".45" stop-color="#7a4f9a"/><stop offset=".8" stop-color="#c46f97"/><stop offset="1" stop-color="#ee9a8c"/></linearGradient>
+    <linearGradient id="wallG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d68f7c"/><stop offset=".7" stop-color="#c98575"/><stop offset="1" stop-color="#b8796f"/></linearGradient>
+    <radialGradient id="doorLight"><stop offset="0" stop-color="#ffd59a" stop-opacity=".8"/><stop offset="1" stop-color="#ffb36b" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect x="-500" y="-400" width="2600" height="560" fill="url(#nsky)"/>
-  ${[[120, 40], [300, 90], [520, 30], [760, 70], [980, 40], [1180, 100], [1480, 50], [640, 120], [880, 130], [-200, 60], [1800, 80], [-60, 110]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#fff6e0"/>`).join('')}
-  <circle cx="1360" cy="78" r="34" fill="#fff8e0"/><circle cx="1360" cy="78" r="70" fill="#c8d7ff" opacity=".12"/>
-  <rect x="-500" y="140" width="2600" height="500" fill="#8f6a64"/>${bricks.join('')}
-  <path d="M-500 132 L2100 132 L2100 156 L-500 156Z" fill="#62769f" ${L(2)}/>
-  <rect x="560" y="250" width="150" height="120" rx="8" fill="#ffd28a" ${L(2.5)}/><path d="M635 250 L635 370 M560 310 L710 310" stroke="#fdf5e8" stroke-width="6"/>
-  <ellipse cx="340" cy="660" rx="240" ry="70" fill="url(#doorLight)"/>
-  <rect x="250" y="320" width="180" height="320" rx="6" fill="#fdf5e8" ${L(2.5)}/><rect x="264" y="334" width="152" height="306" fill="#ffd59a"/>
-  <path d="M264 334 L330 352 L330 640 L264 640Z" fill="#8a5a48" ${L(2)}/>
-  <circle cx="340" cy="296" r="14" fill="#ffe2a6" ${L(2)}/><circle cx="340" cy="296" r="60" fill="#ffd28a" opacity=".25"/>
-  <!-- passage vers l'arrière de la ruelle -->
-  <path d="M1440 640 L1440 430 Q1500 380 1560 430 L1560 640Z" fill="url(#archDark)" ${L(2.5)}/>
-  <path d="M1462 640 L1478 470 L1522 470 L1538 640Z" fill="#3b3650" opacity=".7"/>
-  <text class="artText" x="1500" y="420" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="13" fill="#d9cfc6" opacity=".7">back alley</text>
-  <rect x="-500" y="640" width="2600" height="560" fill="#5d5a72"/>${stones.join('')}
-  <path d="M-500 640 L2100 640" ${L(2.5)}/>
-  <rect x="1270" y="560" width="130" height="90" rx="4" fill="#c99b6e" ${L(2)}/><rect x="1300" y="500" width="100" height="62" rx="4" fill="#d7aa7c" ${L(2)}/>
+  <rect x="-500" y="-400" width="2600" height="1100" fill="url(#nsky)"/>
+  ${stars.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2" fill="#fff6e0" opacity=".85"/>`).join('')}
+  ${CLOUD(1500, 330, 1.25)}${CLOUD(1720, 200, .9)}${CLOUD(-300, 230, .9)}
+  <!-- au-delà du coin du café : le trottoir et la rue, au loin -->
+  <rect x="1200" y="596" width="1000" height="44" fill="#5b5670" ${L(2)}/><path d="M1290 618 L1350 618 M1420 618 L1480 618 M1550 618 L1610 618 M1680 618 L1740 618" stroke="#efe3d0" stroke-width="5" opacity=".7"/>
+  ${TREE(1330, 596, 56, '#4d6b3a')}${TREE(1590, 596, 64)}${BUSH(1460, 598, 34, '#4d6b3a')}
+  <path d="M1720 596 L1720 470" stroke="#5a4a5e" stroke-width="6"/><circle cx="1720" cy="462" r="14" fill="#ffe2a6" ${L(2)}/><circle cx="1720" cy="462" r="50" fill="#ffd28a" opacity=".25"/>
+  <!-- l'arrière du café : mur pêche, corniche, toit d'ardoise et cheminée -->
+  <rect x="380" y="40" width="64" height="90" fill="#c4644a" ${L(2.5)}/><rect x="372" y="32" width="80" height="16" rx="3" fill="#d9775c" ${L(2.5)}/>
+  <circle cx="424" cy="10" r="16" fill="#efe6f2" opacity=".6"/><circle cx="446" cy="-26" r="20" fill="#efe6f2" opacity=".45"/><circle cx="430" cy="-66" r="24" fill="#efe6f2" opacity=".3"/>
+  <path d="M-530 206 L-470 112 L1236 112 L1262 206Z" fill="#6a6788" ${L(3)}/>${shingles.join('')}
+  <path d="M1060 112 L1060 70 M1046 70 Q1060 52 1076 66 L1090 62" fill="none" ${L(3)}/><path d="M1048 70 L1072 70" ${L(3)}/>
+  <rect x="-500" y="206" width="1730" height="434" fill="url(#wallG)" ${L(3)}/>
+  <rect x="-500" y="206" width="1730" height="16" fill="#9e6a68" opacity=".45"/>
+  <rect x="-510" y="398" width="1752" height="16" rx="3" fill="#e8b3a0" ${L(2.5)}/>
+  <!-- fenêtre de l'étage, éclairée, avec jardinière -->
+  <rect x="880" y="250" width="130" height="110" rx="6" fill="#ffd796" ${L(2.5)}/><path d="M945 250 L945 360 M880 305 L1010 305" stroke="#fdf5e8" stroke-width="6"/>
+  <path d="M884 254 Q910 300 892 356 L884 356Z M1006 254 Q980 300 998 356 L1006 356Z" fill="#f2a7a0" opacity=".85"/>
+  <rect x="870" y="360" width="150" height="22" rx="4" fill="#9c6a4c" ${L(2)}/>${[890, 920, 950, 980, 1006].map((x, i) => `<circle cx="${x}" cy="356" r="9" fill="${i % 2 ? '#f4a3b4' : '#6f9a54'}" ${L(1.5)}/>`).join('')}
+  <!-- climatiseur -->
+  <rect x="610" y="470" width="110" height="74" rx="6" fill="#f3ece6" ${L(2.5)}/><circle cx="650" cy="507" r="24" fill="#cfc6c4" ${L(2)}/><path d="M650 487 L650 527 M630 507 L670 507 M636 493 L664 521 M664 493 L636 521" stroke="#9d9291" stroke-width="2"/>
+  <path d="M700 484 L712 484 M700 496 L712 496 M700 508 L712 508 M700 520 L712 520" ${L(1.5)}/>
+  <!-- porte de service, ouverte sur la lumière chaude -->
+  <ellipse cx="340" cy="660" rx="260" ry="70" fill="url(#doorLight)"/>
+  <rect x="246" y="316" width="188" height="324" rx="8" fill="#7a5a48" ${L(2.5)}/><rect x="264" y="334" width="152" height="306" fill="#ffd59a"/>
+  <path d="M264 334 L330 352 L330 640 L264 640Z" fill="#9c6a4c" ${L(2)}/><circle cx="318" cy="500" r="5" fill="#f3d98f" ${L(1.5)}/>
+  <path d="M300 286 L380 286 L370 306 L310 306Z" fill="#3f6e5a" ${L(2)}/><circle cx="340" cy="316" r="9" fill="#ffe2a6" ${L(2)}/><circle cx="340" cy="320" r="70" fill="#ffd28a" opacity=".22"/>
+  <rect x="270" y="640" width="140" height="14" rx="5" fill="#c86f5c" ${L(2)}/>
+  <!-- trottoir pavé au pied du mur, puis l'herbe fleurie -->
+  <rect x="-520" y="640" width="2640" height="60" fill="#c7aea6" ${L(2.5)}/>${tiles.join('')}
+  <rect x="-500" y="700" width="2600" height="500" fill="#7d8c50"/><path d="M-500 700 L2100 700" ${L(2.5)}/>
+  ${flowers.join('')}
+  ${TREE(30, 650, 74)}${BUSH(150, 652, 40, '#6a8a52')}${BUSH(520, 648, 34, '#6a8a52')}
+  ${BUSH(-40, 900, 70)}${BUSH(90, 910, 50, '#6a8a52')}${BUSH(1560, 905, 64)}${BUSH(1680, 915, 52, '#6a8a52')}
+  <path d="M196 650 L218 520 L240 650Z" fill="#5f8a54" ${L(2.5)}/>
+  <rect x="1270" y="568" width="120" height="80" rx="4" fill="#c99b6e" ${L(2)}/><path d="M1270 608 L1390 608" ${L(1.5)} opacity=".5"/><rect x="1296" y="512" width="90" height="58" rx="4" fill="#d7aa7c" ${L(2)}/>
   <g id="bins">
-    <path d="M880 520 L1040 520 L1028 660 L892 660Z" fill="#7d9a8a" ${L(2.5)}/><path d="M912 540 L916 640 M960 540 L960 640 M1008 540 L1004 640" ${L(1.5)} opacity=".5"/>
-    <g id="lid" style="transform-origin:960px 520px;transition:transform .2s"><rect x="868" y="500" width="184" height="24" rx="8" fill="#6b8778" ${L(2.5)}/><rect x="940" y="490" width="40" height="12" rx="4" fill="#5a7466" ${L(2)}/></g>
-    <path d="M1060 540 L1190 540 L1180 660 L1070 660Z" fill="#88a596" ${L(2.5)}/><rect x="1050" y="522" width="150" height="22" rx="8" fill="#759282" ${L(2.5)}/>
+    <path d="M896 530 L1024 530 L1014 660 L906 660Z" fill="#8f97a6" ${L(2.5)}/><path d="M926 548 L930 642 M960 548 L960 642 M994 548 L990 642" ${L(1.5)} opacity=".45"/>
+    <g id="lid" style="transform-origin:960px 530px;transition:transform .2s"><rect x="884" y="512" width="152" height="22" rx="8" fill="#a3abb9" ${L(2.5)}/><rect x="942" y="502" width="36" height="12" rx="4" fill="#7e8695" ${L(2)}/></g>
+    <path d="M1060 560 L1170 560 L1162 660 L1068 660Z" fill="#7fae8c" ${L(2.5)}/><rect x="1052" y="544" width="126" height="20" rx="7" fill="#6f9e7c" ${L(2.5)}/>
+    <path d="M1100 600 Q1115 588 1128 600 L1120 604 M1128 600 L1108 622 Q1100 614 1104 606" fill="none" stroke="#fdf5e8" stroke-width="3" stroke-linecap="round"/>
   </g>
+  <!-- coin du café, avec gouttière -->
+  <rect x="1214" y="206" width="16" height="434" fill="#a8695f" ${L(2)}/><rect x="1220" y="206" width="8" height="434" fill="#8f97a6" ${L(1.5)}/>
   <g id="bowl" opacity="0" style="transition:opacity .4s"><ellipse cx="${BOWL.x}" cy="${BOWL.y}" rx="40" ry="12" fill="#e86a5f" ${L(2)}/><ellipse cx="${BOWL.x}" cy="${BOWL.y - 6}" rx="30" ry="7" fill="#f3e1b5"/><circle cx="${BOWL.x - 10}" cy="${BOWL.y - 8}" r="5" fill="#fffaf2"/><circle cx="${BOWL.x + 8}" cy="${BOWL.y - 10}" r="5" fill="#fffaf2"/></g>
   <g id="bag" class="hit"><g class="bounce"><path d="M410 600 Q396 640 412 652 L470 652 Q486 640 472 600 Q456 588 441 590 Q426 588 410 600Z" fill="#4a4752" ${L(2.5)}/><path d="M432 590 L441 576 L450 590" fill="none" ${L(2.5)}/></g></g>
   <g id="actors"></g>
-  <!-- bord du passage, devant le chien : il peut se cacher derrière pour épier -->
-  <g id="archEdge" style="display:none"><path d="M1424 640 L1424 432 Q1432 418 1446 414 L1452 640Z" fill="#8f6a64" ${L(2)}/>
-  <path d="M1428 470 L1450 470 M1428 520 L1450 520 M1428 570 L1450 570" ${L(1)} opacity=".5"/></g>
-  <rect x="-500" y="-400" width="2600" height="1600" fill="#3a4a8a" class="tint" opacity=".35"/></g>
-  <text x="1500" y="420" text-anchor="middle" font-family="Pixelify Sans, monospace" font-weight="700" font-size="14" fill="#d9cfc6">back alley</text>
+  <!-- buisson devant le coin : le chien arrive de derrière et peut s'y cacher pour épier -->
+  <g id="archEdge">${BUSH(1478, 668, 44)}${BUSH(1540, 672, 32, '#6a8a52')}</g>
+  <rect x="-500" y="-400" width="2600" height="1600" fill="#8a78c8" class="tint" opacity=".14"/></g>
   <g id="fx"></g>`;
 }
 
 export async function nightScene(o: { hero: 'm' | 'f'; night: 1 | 2; name: string; dogName?: string }) {
   const heroId = o.hero === 'f' ? 'heroF' : 'heroM';
   const dogName = o.dogName ?? 'Biscuit';
-  const el = h(`<div class="screen" style="background:#5d5a72"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" style="overflow:visible;background:transparent">${alley()}</svg>
+  const el = h(`<div class="screen" style="background:#7d8c50"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" style="overflow:visible;background:transparent">${alley()}</svg>
     <div class="banner">Night ${o.night} · Closing time</div></div>`);
   ui().appendChild(el);
   const $ = (id: string) => el.querySelector('#' + id) as SVGElement & HTMLElement;
@@ -121,9 +158,8 @@ export async function nightScene(o: { hero: 'm' | 'f'; night: 1 | 2; name: strin
     await talk([B('…It\'s good.', 'eat'), B("Don't tell anyone I ate from a human's hand.", 'eat')]);
     // il retourne vers le passage en trottinant, puis reste à épier le héros
     await dogWalk(ARCH.x - 34, ARCH.y - 4, 230, 'stray');
-    $('archEdge').style.display = '';
     await sleep(500);
-    await talk([H('Goodnight, little one. See you tomorrow?'), { who: 'narr', text: 'From the dark of the back alley, two blue eyes keep watching you.' }]);
+    await talk([H('Goodnight, little one. See you tomorrow?'), { who: 'narr', text: 'From behind the bushes, two blue eyes keep watching you.' }]);
   } else {
     await talk([H('You came back! I saved you something.'), B("I wasn't waiting for you. I was… guarding the bins.")]);
     await feed();
@@ -144,7 +180,7 @@ export async function nightScene(o: { hero: 'm' | 'f'; night: 1 | 2; name: strin
 /* ---------- Fin du niveau 2 : Biscuit sort la poubelle, on remercie l'équipe avec des friandises ---------- */
 export async function closingScene(o: { hero: 'm' | 'f'; name: string; dogName: string; mokaName: string; dogVars?: string; mokaVars?: string }) {
   const heroId = o.hero === 'f' ? 'heroF' : 'heroM';
-  const el = h(`<div class="screen" style="background:#5d5a72"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" style="overflow:visible;background:transparent">${alley()}</svg>
+  const el = h(`<div class="screen" style="background:#7d8c50"><svg class="stage-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" style="overflow:visible;background:transparent">${alley()}</svg>
     <div class="banner">Level 2 · Closing time</div></div>`);
   ui().appendChild(el);
   const $ = (id: string) => el.querySelector('#' + id) as SVGElement & HTMLElement;
